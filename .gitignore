@@ -1,0 +1,21 @@
+# Local caches (TMDb responses, etc.) — never commit
+.cache/
+.tmdb-cache/
+
+# Local secrets (OAuth client config for bb scripts)
+**/eywa.json
+**/synthigy.json
+.env
+.env.local
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Clojure / Babashka build artifacts
+.cpcache/
+.shadow-cljs/
+target/
+classes/
