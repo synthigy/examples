@@ -1,0 +1,20 @@
+{
+    "name": "synthigy-examples/movies-php",
+    "description": "Movies example for the Synthigy PHP SDK: raw calls, generated typed operations, and a batch.",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.1",
+        "synthigy/sdk": "^0.2.3"
+    },
+    "scripts": {
+        "setup": "php setup.php",
+        "demo": "php demo.php",
+        "serve": "php -S localhost:5176 web.php"
+    },
+    "scripts-descriptions": {
+        "setup": "Deploy the movies model and seed it (run once, before codegen)",
+        "demo": "Run the command-line tour",
+        "serve": "Serve the same operations at http://localhost:5176"
+    }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@synthigy-examples/movies-js",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Live movies app on @synthigy/sdk — SSE-patched HTML, OIDC login, no client framework.",
+  "main": "serve.ts",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.ts",
+    "teardown": "node scripts/teardown.ts",
+    "codegen": "synthigy-gen ../xsql/ generated/",
+    "codegen:pull": "synthigy-gen --pull ../xsql/ generated/",
+    "start": "node --watch serve.ts",
+    "typecheck": "tsc --noEmit",
+    "pretest": "npm run typecheck",
+    "test": "node --test tests/flow.test.mjs",
+    "test:browser": "node --test tests/tour.browser.mjs"
+  },
+  "dependencies": {
+    "@synthigy/sdk": "^0.2.2",
+    "tyrell-components": "1.0.0-TC55"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "playwright": "^1.63.0",
+    "typescript": "^5.6"
+  }
+}

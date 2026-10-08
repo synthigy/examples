@@ -1,0 +1,517 @@
+/* datastar-movies — Tyrell-token COLOURS, avatars, the debug console, badges
+   and animations only. Layout/spacing lives in Tailwind utilities in the view
+   .ts files. Borders sit here too: with Tailwind preflight off, its `border`
+   utility sets width but not style, so a visible edge must come from CSS. */
+
+:root {
+  --ty-primary-hue: 95;      /* yellow — the palette is seeded from this */
+  --ty-primary-chroma: 0.15;
+  --ty-success-hue: 150;     /* the build badge's mint, not Tyrell's olive next to the yellow */
+  --ty-success-chroma: 0.16;
+  --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+/* Yellow needs lifting or it reads olive; black text on the solid fill. */
+html[data-theme="dark"] {
+  --ty-scrollbar-thumb: #5b5b5b38;
+  --ty-primary-chroma: 0.15;
+  --ty-solid-primary-fg: black;
+  --ty-solid-primary: oklch(0.88 0.17 95);
+  --ty-solid-primary-hover: oklch(0.83 0.18 95);
+  --ty-solid-primary-active: oklch(0.78 0.18 95);
+  --ty-color-primary: oklch(0.86 0.15 95);
+  --ty-success-hue: 150;
+  --ty-success-chroma: 0.16;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--ty-surface-canvas);
+  color: var(--ty-text);
+  font: 14px/1.55 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  transition: opacity 0.12s ease;             /* no-FOUC fade-in */
+}
+/* header/footer stay put; this is the only element that scrolls */
+.page-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* layout({ fill: true }) — main ends at the footer and a scroll region inside
+   it owns the only scrollbar (no page scroll behind a bounded container) */
+.page-scroll.page-fill { overflow: hidden; display: flex; flex-direction: column; }
+html:not(.ty-ready) body { opacity: 0; }      /* hidden until ty-* upgrade */
+h1, h2, h3 { display: flex; align-items: center; gap: 10px; margin: 0; }
+a { color: var(--ty-color-primary); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+code {
+  background: var(--ty-surface-elevated); padding: 2px 6px; border-radius: 4px;
+  font: 500 0.88em/1 var(--font-mono); color: var(--ty-color-primary);
+}
+
+/* ── surfaces + borders ─────────────────────────────────────────────── */
+.hero, .card, .note, .movies, .ratings, .detail-card, .cast-card,
+.actor-card, .counter, .movie-form {
+  background: var(--ty-surface-content); border: 1px solid var(--ty-border);
+}
+.picker-scroll { background: var(--ty-surface-elevated); border: 1px solid var(--ty-border); }
+.topbar { background: var(--ty-surface-content); border-bottom: 1px solid var(--ty-border); }
+.dialog-header { border-bottom: 1px solid var(--ty-border); }
+.dialog-footer, footer { border-top: 1px solid var(--ty-border); }
+.pager-btn { background: var(--ty-surface-content); border: 1px solid var(--ty-border); }
+.section-count { background: var(--ty-surface-elevated); border: 1px solid var(--ty-border); }
+.empty-panel { background: var(--ty-surface-content); border: 1px dashed var(--ty-border); }
+.detail-card-footer { background: var(--ty-surface-elevated); border-top: 1px solid var(--ty-border-soft); }
+.detail-score-inline { background: var(--ty-bg-primary-soft); border: 1px solid rgba(255, 184, 0, 0.22); color: var(--ty-color-primary); }
+.movie { border-bottom: 1px solid var(--ty-border-soft); }
+.rating { border-bottom: 1px solid var(--ty-border-soft); }
+.movie:last-child, .rating:last-child { border-bottom: 0; }
+
+/* Card hover lifts */
+.card, .cast-card, .actor-card { color: inherit; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; }
+.card:hover { transform: translateY(-1px); text-decoration: none; }
+.cast-card:hover, .actor-card:hover { transform: translateY(-2px); border-color: var(--ty-bg-strong); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.45); text-decoration: none; }
+
+/* Movie-row left accent on hover */
+.movie-link { color: inherit; transition: background 0.15s; }
+.movie-link::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: transparent; transition: background 0.15s; }
+.movie-link:hover { background: var(--ty-surface-elevated); text-decoration: none; }
+.movie-link:hover::before { background: var(--ty-color-primary); }
+
+/* ── colours: text tokens ───────────────────────────────────────────── */
+.brand { color: var(--ty-text); }
+.brand:hover { text-decoration: none; }
+.nav-link { color: var(--ty-text-faint); transition: background 0.15s, color 0.15s; }
+.nav-link:hover { color: var(--ty-text); background: var(--ty-surface-elevated); text-decoration: none; }
+.nav-link[aria-current="page"] { color: var(--ty-color-primary); background: var(--ty-bg-primary-soft); font-weight: 600; }
+footer { color: var(--ty-text-faint); }
+.footer-credit { color: var(--ty-text-faint); }
+
+/* ── footer tool dock (tools-rail's Model/Console/Logs, event console
+   toggle) — overrides tools-rail.js's own injected .syn-tools-dock rule
+   (position:fixed, vertical stack) with a scoped selector so it wins
+   regardless of stylesheet load order, no !important needed. ─────────── */
+#footer-tools { min-height: 32px; }
+#footer-tools .syn-tools-dock {
+  position: static !important; bottom: auto !important; left: auto !important; right: auto !important;
+  flex-direction: row !important; align-items: center !important; gap: 8px; z-index: auto !important;
+}
+#footer-tools .syn-tools-hint { display: none; } /* "@synthigy/tooling" caption — redundant once docked, footer already says who built this */
+
+.hero-text, .card-text, .note-list, .rating-rater-name, .form-label { color: var(--ty-text-soft); }
+.card-icon, .counter-icon, .detail-score-inline ty-icon, .form-required, .cast-count { color: var(--ty-color-primary); }
+.counter-icon { opacity: 0.55; }
+.movie-meta, .actor-card-meta, .rating-rater, .detail-score-divider, .detail-score-max,
+.detail-year-empty, .detail-rating-count ty-icon, .form-field-hint { color: var(--ty-text-faint); }
+.detail-meta-sep { color: var(--ty-bg-strong); }
+.detail-year-empty { font-style: italic; }
+.hint { color: var(--ty-text-soft); font-size: 0.86em; line-height: 1.55; }
+
+/* Mono-font labels (sizes live in Tailwind) */
+.movie-year, .rating-rater-name { color: var(--ty-text-soft); }
+.movie-year, .movie-stats-count, .rating-ts, .detail-year, .detail-rating-count,
+.detail-id-label, .detail-id-value, .detail-card-hint, .rate-form-label,
+.section-title, .section-count, .pager-status,
+.movies-search-count, .back-link { font-family: var(--font-mono); }
+.movie-stats-count, .rating-ts, .detail-id-label, .detail-card-hint,
+.pager-status, .movies-search-count, .back-link { color: var(--ty-text-faint); }
+.detail-year, .detail-rating-count, .detail-id-value, .rate-form-label { color: var(--ty-text-soft); }
+.back-link:hover { color: var(--ty-text-soft); text-decoration: none; }
+.section-title { color: var(--ty-text-faint); text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600; }
+.section-count { color: var(--ty-text-soft); }
+.rate-form-label, .detail-id-label { text-transform: uppercase; letter-spacing: 0.12em; }
+.empty-panel { color: var(--ty-text-faint); font-style: italic; }
+.movies-search-clear { color: var(--ty-text-faint); }
+.movies-search-clear:hover { color: var(--ty-text); }
+.pager-btn { color: var(--ty-text); transition: border-color 0.15s, background 0.15s; }
+.pager-btn:hover { border-color: var(--ty-bg-strong); background: var(--ty-surface-floating); text-decoration: none; }
+.pager-btn.disabled { opacity: 0.4; pointer-events: none; }
+.detail-card { overflow: hidden; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2); }
+.detail-card-footer code { padding: 1px 5px; font-size: 0.92em; }
+.detail-id-value { background: var(--ty-surface-floating); }
+.counter .value { color: var(--ty-color-primary); font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1; }
+.cast-meta { color: var(--ty-text-faint); }
+
+/* ── detail head (poster/avatar + title + rate form) ─────────────────
+   A grid rather than a flex row: the rate form is the head's own child, so a
+   phone can give it the full width instead of the ~150px left over beside a
+   120px poster. Desktop keeps the poster spanning both rows. */
+.detail-head {
+  display: grid; align-items: start;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "poster text" "poster form";
+  column-gap: 20px;
+}
+.detail-head > .detail-poster, .detail-head > .cast-avatar { grid-area: poster; }
+.detail-head-text { grid-area: text; }
+.detail-head > .rate-form { grid-area: form; }
+
+/* ── movie posters (real TMDb art, or a title-initial tile fallback) ─── */
+.movie-thumb, .detail-poster {
+  border-radius: 6px; box-shadow: 0 4px 12px -6px rgba(0, 0, 0, 0.4); overflow: hidden;
+  object-fit: cover;
+}
+.movie-thumb { width: 44px; height: 64px; }
+.detail-poster { width: 120px; height: 176px; }
+.movie-poster-fallback {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-body); font-weight: 700; font-size: 15px;
+}
+.detail-poster.movie-poster-fallback { font-size: 34px; }
+
+/* ── avatars (round initial chips) ──────────────────────────────────── */
+.cast-avatar, .actor-card-avatar, .rating-avatar, .tag-av {
+  border-radius: 50%; align-items: center; justify-content: center;
+  font-family: var(--font-body); font-weight: 700; flex-shrink: 0;
+}
+.cast-avatar, .actor-card-avatar { display: flex; box-shadow: 0 4px 12px -6px rgba(0, 0, 0, 0.4); }
+.rating-avatar, .tag-av { display: inline-flex; }
+.cast-avatar { width: 72px; height: 72px; font-size: 22px; margin: 0 auto 12px; overflow: hidden; }
+.cast-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.actor-card-avatar { width: 64px; height: 64px; font-size: 20px; overflow: hidden; }
+.actor-card-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.rating-avatar { width: 22px; height: 22px; font-size: 9.5px; }
+.tag-av { width: 24px; height: 24px; font-size: 9px; box-shadow: 0 1px 3px -1px rgba(0, 0, 0, 0.5); }
+
+/* Picker <ty-tag> theming via its custom-property API + tightened ::part */
+.actor-tag, .genre-tag { cursor: pointer; }
+.actor-tag { --tag-bg: var(--ty-surface-elevated); --tag-border-color: var(--ty-border); }
+.actor-tag:hover { --tag-bg: var(--ty-surface-floating); --tag-border-color: var(--ty-bg-strong); }
+/* Selected cast floats to the top of the flex picker (instant, client-side) so
+   picked actors stay visible with their avatars — no separate token box. */
+.actor-tag[selected] { order: -1; --tag-bg: var(--ty-bg-primary-soft); --tag-border-color: var(--ty-color-primary); --tag-color: var(--ty-color-primary); }
+.actor-tag::part(container) { padding: 3px 12px 3px 4px; gap: 8px; min-height: 32px; }
+/* One quiet gold for ratings — the only coloured tag among neutrals. */
+ty-tag[flavor="rating"] { --tag-bg: oklch(0.26 0.035 92); --tag-color: oklch(0.80 0.10 92); --tag-border-color: oklch(0.40 0.06 92); }
+
+/* ── build badge ────────────────────────────────────────────────────── */
+.build-badge {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; margin-right: 8px;
+  border: 1px solid #16a34a; background: rgba(74, 222, 128, 0.08); border-radius: 999px;
+  font: 500 10.5px/1 var(--font-mono); letter-spacing: 0.04em; color: #86efac; cursor: help;
+}
+.build-badge-dot, .ribbon-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  animation: ribbon-dot-pulse 1.6s ease-in-out infinite;
+}
+.build-badge-dot { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.ribbon-dot { background: var(--ty-color-success); box-shadow: 0 0 6px var(--ty-color-success); }
+@keyframes ribbon-dot-pulse {
+  0%, 100% { box-shadow: 0 0 6px var(--ty-color-success), 0 0 0 0 rgba(74, 222, 128, 0.5); }
+  50% { box-shadow: 0 0 8px var(--ty-color-success), 0 0 0 5px rgba(74, 222, 128, 0); }
+}
+
+/* ── one-shot notice banner (?notice=, dismissible) ─────────────────── */
+.auth-notice {
+  display: flex; align-items: center; gap: 10px;
+  max-width: 1100px; margin: 14px auto 0; padding: 10px 14px;
+  background: var(--ty-bg-primary-soft); border: 1px solid var(--ty-border);
+  border-radius: 8px; color: var(--ty-text); font-size: 0.9rem;
+  animation: notice-in 220ms ease-out;
+}
+.auth-notice[hidden] { display: none; }
+.auth-notice ty-icon { color: var(--ty-color-primary); }
+.auth-notice-text { flex: 1; }
+.auth-notice-close {
+  background: none; border: 0; cursor: pointer; padding: 0 4px;
+  font-size: 1.15rem; line-height: 1; color: var(--ty-text-faint);
+}
+.auth-notice-close:hover { color: var(--ty-text); }
+@keyframes notice-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* ── live-update flash on a rated row ───────────────────────────────── */
+.movie-stats.flash-a, .movie-stats.flash-b { animation: stats-flash 1100ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes stats-flash {
+  0% { background: rgba(255, 184, 0, 0.3); box-shadow: 0 0 18px -4px var(--ty-bg-primary-soft); }
+  60% { background: rgba(255, 184, 0, 0.08); box-shadow: 0 0 0 0 transparent; }
+  100% { background: transparent; box-shadow: none; }
+}
+
+/* ── debug ribbon (event console; fixed dev widget) ─────────────────── */
+.debug-ribbon[hidden] { display: none; } /* [hidden] alone loses to .debug-ribbon's own display:flex at equal specificity */
+.debug-ribbon {
+  position: fixed; right: 20px; bottom: 20px; width: 460px; max-height: 55vh;
+  display: flex; flex-direction: column; background: rgba(10, 12, 15, 0.96);
+  border: 1px solid var(--ty-border); border-radius: 8px; font-family: var(--font-mono);
+  font-size: 11.5px; z-index: 9999; box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.6); overflow: hidden;
+}
+.ribbon-header { display: flex; justify-content: space-between; align-items: center; padding: 9px 13px; border-bottom: 1px solid var(--ty-border); background: var(--ty-surface-content); }
+.ribbon-header-end { display: inline-flex; align-items: center; gap: 10px; }
+.ribbon-title { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ty-text); }
+.ribbon-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; padding: 0; border: 0; border-radius: 5px;
+  background: transparent; color: var(--ty-text-faint); font-size: 15px; line-height: 1;
+  cursor: pointer; transition: color 0.15s, background 0.15s;
+}
+.ribbon-close:hover { color: var(--ty-text); background: var(--ty-surface-elevated); }
+.ribbon-restore[hidden] { display: none; }
+.ribbon-restore {
+  /* Docked into #footer-tools (see layout.ts) — flows inline, not floating. */
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px;
+  border: 1px solid var(--ty-border); border-radius: 999px;
+  background: var(--ty-surface-content); color: var(--ty-text-soft);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em;
+  cursor: pointer; box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+  transition: color 0.15s, border-color 0.15s;
+}
+.ribbon-restore:hover { color: var(--ty-text); border-color: var(--ty-bg-strong); }
+.ribbon-meta { font-size: 10.5px; letter-spacing: 0.04em; color: var(--ty-text-faint); }
+.ribbon-log { margin: 0; padding: 6px 0; overflow-y: auto; display: flex; flex-direction: column-reverse; color: var(--ty-text); flex: 1; scrollbar-width: thin; scrollbar-color: var(--ty-surface-floating) transparent; }
+.ribbon-log::-webkit-scrollbar { width: 6px; }
+.ribbon-log::-webkit-scrollbar-thumb { background: var(--ty-surface-floating); border-radius: 3px; }
+.ev-row { display: grid; grid-template-columns: 72px 120px 1fr; gap: 10px; padding: 3px 13px; border-left: 2px solid transparent; font: 400 11px/1.4 var(--font-mono); transition: background 0.15s; animation: ev-row-in 220ms ease-out; }
+.ev-row:hover { background: rgba(255, 255, 255, 0.02); }
+.ev-time { color: var(--ty-text-faint); font-variant-numeric: tabular-nums; font-size: 10.5px; white-space: nowrap; }
+.ev-type { color: var(--ty-text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev-detail { color: var(--ty-text-soft); font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev-add { border-left-color: var(--ty-color-success); } .ev-add .ev-type { color: var(--ty-color-success); }
+.ev-remove { border-left-color: var(--ty-color-danger); } .ev-remove .ev-type { color: var(--ty-color-danger); }
+.ev-change { border-left-color: var(--ty-color-warning); } .ev-change .ev-type { color: var(--ty-color-warning); }
+.ev-info { border-left-color: var(--ty-color-secondary); } .ev-info .ev-type { color: var(--ty-color-secondary); }
+.ev-warn { border-left-color: var(--ty-color-danger-bold); background: rgba(239, 68, 68, 0.06); } .ev-warn .ev-type { color: var(--ty-color-danger-bold); }
+@keyframes ev-row-in { 0% { opacity: 0; transform: translateX(6px); } 100% { opacity: 1; transform: translateX(0); } }
+
+@media (max-width: 860px) {
+  .debug-ribbon { width: calc(100vw - 24px); right: 12px; bottom: 12px; max-height: 40vh; }
+}
+
+/* ── presence pill (topbar) ──────────────────────────────────────────── */
+.presence-pill {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; margin-right: 4px;
+  border: 1px solid var(--ty-border); background: var(--ty-surface-elevated); border-radius: 999px;
+  font: 500 10.5px/1 var(--font-mono); letter-spacing: 0.04em; color: var(--ty-text-soft);
+}
+
+/* ── guide (deploy → import → explore → destroy) ────────────────────── */
+.guide-figure { display: flex; flex-direction: column; gap: 3px; }
+.guide-figure-value { font-size: 1.9rem; font-weight: 700; color: var(--ty-color-primary); letter-spacing: -0.02em; line-height: 1; }
+.guide-figure--sm .guide-figure-value { font-size: 1.15rem; color: var(--ty-text-soft); }
+.guide-figure-label { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--ty-text-faint); text-transform: uppercase; letter-spacing: 0.08em; }
+
+#guide-wizard { --ty-wizard-width: 100%; --ty-wizard-bg: var(--ty-surface-content); --ty-wizard-border: var(--ty-border);
+  --ty-wizard-header-bg: var(--ty-surface-elevated); --ty-wizard-panels-bg: var(--ty-surface-content);
+  --ty-wizard-active-accent: var(--ty-color-primary); --ty-wizard-completed-accent: var(--ty-color-success);
+  --ty-wizard-error-accent: var(--ty-color-danger); --ty-wizard-pending-accent: var(--ty-text-faint);
+  --ty-wizard-progress-track: var(--ty-border); --ty-wizard-progress-fill: var(--ty-color-primary);
+  display: block; border-radius: 12px; overflow: hidden; }
+.guide-panel { max-width: 640px; }
+.guide-callout { background: var(--ty-bg-primary-soft); border-color: var(--ty-color-primary); }
+.guide-note { background: var(--ty-surface-elevated); border-color: var(--ty-border); display: flex; align-items: center; gap: 8px; font-size: 0.86em; color: var(--ty-text-soft); }
+.guide-error { background: rgba(239, 68, 68, 0.08); border-color: var(--ty-color-danger); color: var(--ty-color-danger); display: flex; align-items: center; gap: 8px; font-size: 0.9em; }
+
+.guide-bar-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+.guide-bar-label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.86rem; color: var(--ty-text-soft); }
+.guide-bar-readout { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ty-text-faint); }
+.guide-bar-track { position: relative; border-radius: 999px; background: var(--ty-surface-elevated); border: 1px solid var(--ty-border); overflow: hidden; }
+.guide-bar-track { height: 6px; }
+.guide-bar--sm .guide-bar-label, .guide-bar--sm .guide-bar-readout { font-size: 0.76rem; }
+.guide-bar-fill { position: absolute; inset: 0 auto 0 0; width: 0%; border-radius: 999px; background: var(--ty-color-primary); transition: width 0.3s ease; }
+/* The importer's OWN tally, a leading marker line — the yellow fill behind
+   it is what the demo/progress XSQL template actually counts. Positioned by
+   `left`: given a width it would paint over the fill and grey the whole bar. */
+.guide-bar-written { position: absolute; top: -1px; bottom: -1px; width: 2px; background: var(--ty-text-faint); z-index: 1; transition: left 0.3s ease; }
+.guide-bar-shimmer { background-image: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%); background-size: 200% 100%; animation: guide-bar-shimmer 1.3s linear infinite; }
+@keyframes guide-bar-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .guide-bar-shimmer { animation: none; } }
+
+.guide-status { font-family: var(--font-mono); font-size: 0.82rem; color: var(--ty-text-faint); min-height: 1.2em; }
+
+/* ── driver.js tour skin ─────────────────────────────────────────────────
+   driver.css sets `all:unset` on .driver-popover and its buttons, so every
+   property here is additive rather than an override fight. Two specificity
+   notes: .driver-popover.movies-tour (2 classes) beats driver's own
+   single-class rules, and the ARROW must be recoloured per side class —
+   a blanket border-color on .driver-popover-arrow outspecifies driver's
+   own per-side `transparent` and renders a diamond instead of a triangle. */
+.driver-popover.movies-tour {
+  --tour-bg: #14151b;
+  background: var(--tour-bg);
+  color: var(--ty-text);
+  border: 1px solid var(--ty-border);
+  border-radius: 12px;
+  padding: 20px 20px 16px;
+  max-width: 380px;
+  font-family: var(--font-body);
+  box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+/* Brand hairline across the top — ties the tour to the demo's own accent. */
+.driver-popover.movies-tour::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
+  background: linear-gradient(90deg, var(--ty-color-primary), transparent 70%);
+}
+.movies-tour .driver-popover-title {
+  color: var(--ty-text); font-size: 1.02rem; font-weight: 700;
+  letter-spacing: -0.01em; padding-right: 28px;
+}
+.movies-tour .driver-popover-description {
+  color: var(--ty-text-soft); font-size: 0.9rem; line-height: 1.6; margin-top: 7px;
+}
+.movies-tour .driver-popover-description code {
+  background: var(--ty-surface-elevated); color: var(--ty-color-primary);
+  padding: 1.5px 5px; border-radius: 4px;
+  font: 500 0.86em/1 var(--font-mono);
+}
+.movies-tour .tour-hint { margin: 8px 0 0; font-size: 0.78rem; color: var(--ty-text-faint); line-height: 1.5; }
+
+/* Action buttons the steps embed in their own description HTML — tyrell,
+   same as the app; they get their own row, and only spacing lives here. */
+.movies-tour .driver-popover-description .tour-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0;
+}
+.movies-tour .driver-popover-description .tour-qr {
+  margin: 12px 0 0; display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.movies-tour .driver-popover-description .tour-qr canvas {
+  border-radius: 8px; padding: 8px; background: #fff;
+}
+.movies-tour .driver-popover-description .tour-qr .tour-hint {
+  margin: 0; text-align: center; word-break: break-all;
+}
+
+/* Phones: the popover is most of the screen, so it gets the screen's margins
+   rather than a desktop card's, and the action row stacks instead of wrapping
+   into ragged pairs. */
+@media (max-width: 560px) {
+  .driver-popover.movies-tour {
+    max-width: calc(100vw - 24px);
+    padding: 18px 18px 16px;
+  }
+  .movies-tour .driver-popover-title { font-size: 1.02rem; line-height: 1.3; }
+  .movies-tour .driver-popover-description { font-size: 0.9rem; }
+  .movies-tour .driver-popover-description .tour-actions { flex-direction: column; align-items: stretch; }
+  /* `width: 100%` sizes the HOST; the <button> inside its shadow root is a
+     flex item and stays content-width. `display: grid` on the host makes that
+     inner button a grid item, which stretches to fill. */
+  .movies-tour .driver-popover-description .tour-actions ty-button { width: 100%; display: grid; }
+  .movies-tour .driver-popover-description .tour-qr canvas { width: 140px; height: 140px; }
+  .movies-tour .driver-popover-footer { gap: 8px; }
+  .movies-tour .driver-popover-footer-btn { padding: 9px 12px; }
+}
+
+/* Footer: progress on the left, nav on the right, divided from the body. */
+.movies-tour .driver-popover-footer {
+  margin-top: 18px; padding-top: 13px; border-top: 1px solid var(--ty-border-soft);
+  gap: 10px;
+}
+.movies-tour .driver-popover-progress-text {
+  color: var(--ty-text-faint); font: 500 0.72rem/1 var(--font-mono); letter-spacing: 0.1em;
+}
+.movies-tour .driver-popover-footer-btn {
+  padding: 7px 14px; border-radius: 8px; font: 600 0.8rem/1.2 var(--font-body);
+  border: 1px solid var(--ty-border); background: transparent; color: var(--ty-text-soft);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.movies-tour .driver-popover-footer-btn:hover {
+  background: var(--ty-surface-elevated); border-color: var(--ty-bg-strong); color: var(--ty-text);
+}
+.movies-tour .driver-popover-next-btn {
+  background: var(--ty-solid-primary); border-color: var(--ty-solid-primary);
+  color: var(--ty-solid-primary-fg, #000);
+}
+.movies-tour .driver-popover-next-btn:hover {
+  background: var(--ty-solid-primary-hover); border-color: var(--ty-solid-primary-hover);
+  color: var(--ty-solid-primary-fg, #000);
+}
+.movies-tour .driver-popover-footer .driver-popover-btn-disabled { opacity: 0.32; }
+/* Borderless × in the padding corner — driver gives it position:absolute top/right:0. */
+.movies-tour .driver-popover-close-btn {
+  width: 34px; height: 32px; color: var(--ty-text-faint); font-size: 20px; font-weight: 400;
+  background: transparent; border: 0; border-radius: 8px; transition: color 0.15s, background 0.15s;
+}
+.movies-tour .driver-popover-close-btn:hover,
+.movies-tour .driver-popover-close-btn:focus { color: var(--ty-text); background: var(--ty-surface-elevated); }
+
+.movies-tour .driver-popover-arrow-side-left   { border-left-color: var(--tour-bg, #14151b); }
+.movies-tour .driver-popover-arrow-side-right  { border-right-color: var(--tour-bg, #14151b); }
+.movies-tour .driver-popover-arrow-side-top    { border-top-color: var(--tour-bg, #14151b); }
+.movies-tour .driver-popover-arrow-side-bottom { border-bottom-color: var(--tour-bg, #14151b); }
+
+/* The spotlit element. outline-offset stays inside the cutout's stagePadding
+   (8px, set in guide-tour.js) so the ring isn't swallowed by the overlay. */
+.driver-active-element {
+  border-radius: 10px;
+  outline: 2px solid var(--ty-color-primary);
+  outline-offset: 3px;
+}
+/* driver.js disables pointer events on everything but the spotlit element,
+   and its class cannot reach into a tool's shadow root: keep the tools live. */
+.driver-active synthigy-data-modeling,
+.driver-active synthigy-data-console,
+.driver-active synthigy-log-cockpit { pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .driver-fade .driver-popover, .driver-fade .driver-overlay { animation: none; }
+}
+
+/* Share panel — the topbar's "Share" opens it; the tour's share step reuses it. */
+.share-panel .share-url {
+  background: var(--ty-surface-elevated); border-color: var(--ty-border-soft);
+}
+.share-panel .share-url code { color: var(--ty-color-primary); font-family: var(--font-mono); }
+.share-panel .share-qr {
+  display: flex; justify-content: center;
+}
+.share-panel .share-qr canvas {
+  background: #fff; padding: 10px; border-radius: 10px;
+}
+@media (max-width: 560px) {
+  .share-panel .share-qr canvas { width: 150px; height: 150px; }
+}
+
+/* ── phone (the topbar is what forces the page wide; everything else here
+   is spacing) ─────────────────────────────────────────────────────────
+   The breakpoints match the variants used in the view .ts files — 1100 is
+   where the build badge goes and the nav drops to its own row (below that the
+   bar cannot hold one line), 560 where button labels go and only their icons
+   stay. Content grids keep their own 860. */
+@media (max-width: 1100px) {
+  /* Pushed right, and its desktop right-margin dropped: without that the
+     first row is 0.4px too wide at 360 and the user cluster wraps to a third
+     row. Lives here, not as a utility class on the element — presence.ts
+     re-renders this pill over SSE and only the id and .presence-pill class
+     survive that patch. */
+  .presence-pill { padding: 4px 9px; font-size: 10px; margin-left: auto; margin-right: 0; }
+  /* Two rows of chrome is already a lot of a phone screen; don't let the
+     header take a third by growing its own line-height. */
+  .topbar .nav-link { font-size: 0.86rem; }
+}
+@media (max-width: 560px) {
+  .detail-head {
+    grid-template-areas: "poster text" "form form";
+    column-gap: 14px; row-gap: 14px;
+  }
+  .detail-poster { width: 92px; height: 134px; }
+  .detail-poster.movie-poster-fallback { font-size: 26px; }
+  .detail-head > .cast-avatar { width: 56px; height: 56px; font-size: 17px; }
+  /* The rate input carries the Submit button in its `end` slot; at 110px the
+     two collide. Let the field take the row. */
+  .rate-form ty-input { flex: 1 1 100%; }
+  .rate-form .rate-form-label { margin-right: 0; }
+
+  /* The meta row wraps on a phone, and a wrapped "·" ends up dangling at the
+     end of a line separating nothing. */
+  .detail-meta-sep { display: none; }
+
+  /* Five hero figures only fit three-up if the numbers stop setting a
+     160px min-content width of their own. */
+  .guide-figure-value { font-size: 1.3rem; }
+  .guide-figure-label { font-size: 0.68rem; letter-spacing: 0.06em; }
+
+  .counter .value { font-size: 1.5rem; }
+  .counter .label { font-size: 0.82rem; }
+
+  /* Touch targets. `.brand` is a plain <a>, so padding out its box is enough.
+     ty-button is NOT: its control lives in a shadow root and a min-height on
+     the host grows only the host, leaving a strip that looks tappable and
+     fires nothing — layout.ts raises the component's own `size` instead. */
+  .topbar .brand { min-height: 36px; min-width: 36px; justify-content: center; }
+
+  /* The event console docks into the footer; on a phone it may not take half
+     the viewport with it. */
+  .debug-ribbon { max-height: 34vh; }
+  .ev-row { grid-template-columns: 62px 1fr; gap: 4px 8px; padding: 3px 10px; }
+  .ev-detail { grid-column: 1 / -1; }
+}

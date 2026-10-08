@@ -1,0 +1,88 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "e79b6d0949cdc0f2a5fc8cb351fbe7bc",
+    "packages": [
+        {
+            "name": "synthigy/sdk",
+            "version": "v0.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/synthigy/php.git",
+                "reference": "7ae4ad139cdebbf86013510917dc577cd0d3a0ae"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/synthigy/php/zipball/7ae4ad139cdebbf86013510917dc577cd0d3a0ae",
+                "reference": "7ae4ad139cdebbf86013510917dc577cd0d3a0ae",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.2",
+                "phpunit/phpunit": "^10.5"
+            },
+            "bin": [
+                "bin/synthigy-codegen"
+            ],
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/Filters.php",
+                    "src/Selection.php",
+                    "src/Ops.php",
+                    "src/Compose.php",
+                    "src/Codegen/Naming.php",
+                    "src/Codegen/Pull.php",
+                    "src/Codegen/Describe.php",
+                    "src/Codegen/Render.php",
+                    "src/Codegen/Commands.php"
+                ],
+                "psr-4": {
+                    "Synthigy\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Robert Geršak"
+                }
+            ],
+            "description": "Thin PHP client for Synthigy's /data endpoint: reads, writes, XSQL, OAuth and typed code generation. No watch/SSE layer.",
+            "homepage": "https://github.com/synthigy/synthigy",
+            "keywords": [
+                "client",
+                "dataset",
+                "iam",
+                "sdk",
+                "synthigy"
+            ],
+            "support": {
+                "issues": "https://github.com/synthigy/php/issues",
+                "source": "https://github.com/synthigy/php"
+            },
+            "time": "2026-09-11T15:56:43+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {
+        "php": "^8.1"
+    },
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}

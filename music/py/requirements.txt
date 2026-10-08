@@ -1,0 +1,9 @@
+# datastar-music demo dependencies.
+#
+# The Synthigy SDK is published on PyPI and is stdlib-only. To develop against
+# an unreleased SDK instead, `pip install -e <path-to>/sdk/py` over the top;
+# nothing committed here changes.
+synthigy==0.3.2
+fastapi>=0.110
+uvicorn[standard]>=0.29
+datastar-py>=1.0.2

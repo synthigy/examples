@@ -1,0 +1,87 @@
+name: synthigy-bench
+
+# Dedicated, isolated benchmark stack. Does NOT touch the dev Postgres on :5432.
+#   bench-postgres : :5433  (one Postgres, shared by every competitor — same box, same config)
+#   bench-hasura   : :8088
+#   bench-postgrest: :3001  (the data-API engine Supabase ships — "Supabase" row)
+
+services:
+  bench-postgres:
+    image: postgres:15-alpine
+    container_name: bench-postgres
+    environment:
+      POSTGRES_USER: bench
+      POSTGRES_PASSWORD: bench
+      POSTGRES_DB: bench
+    ports:
+      - "5433:5432"
+    # Tuned for ml-25m-scale imports (~30M physical rows + audit substrate).
+    # The original 256MB shared_buffers / default work_mem config was fine
+    # for ml-latest-small (140K rows) but chokes at 25M. Competitor numbers
+    # in bench/README.md were taken on the OLD config — re-baseline them at
+    # ml-25m if you want a fair head-to-head at this scale.
+    shm_size: 2g
+    command:
+      - postgres
+      - -c
+      - shared_buffers=4GB
+      - -c
+      - work_mem=256MB
+      - -c
+      - maintenance_work_mem=1GB
+      - -c
+      - effective_cache_size=12GB
+      - -c
+      - max_wal_size=8GB
+      - -c
+      - checkpoint_timeout=30min
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - wal_compression=on
+      - -c
+      - max_connections=100
+      - -c
+      - fsync=on
+      - -c
+      - synchronous_commit=on
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bench -d bench"]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+
+  bench-hasura:
+    image: hasura/graphql-engine:v2.42.0
+    container_name: bench-hasura
+    depends_on:
+      bench-postgres:
+        condition: service_healthy
+    ports:
+      - "8088:8080"
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://bench:bench@bench-postgres:5432/bench
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ADMIN_SECRET: benchsecret
+      HASURA_GRAPHQL_PG_CONNECTIONS: "50"
+
+  # PostgREST is the exact engine Supabase's data API (/rest/v1) runs on.
+  # Benchmarking it directly against the same Postgres measures Supabase's
+  # write path without the irrelevant non-write components (Kong gateway,
+  # GoTrue, Realtime, Studio) — those are not on the insert path.
+  bench-postgrest:
+    image: postgrest/postgrest:v12.2.3
+    container_name: bench-postgrest
+    depends_on:
+      bench-postgres:
+        condition: service_healthy
+    ports:
+      - "3001:3000"
+    environment:
+      PGRST_DB_URI: postgres://bench:bench@bench-postgres:5432/bench
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: bench
+      PGRST_DB_POOL: "20"
+      PGRST_SERVER_TIMING_ENABLED: "false"
+      PGRST_DB_AGGREGATES_ENABLED: "true"

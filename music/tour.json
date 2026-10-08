@@ -1,0 +1,41 @@
+{
+  "name": "music",
+  "steps": [
+    {
+      "target": "sort",
+      "title": "A declared, validated sort",
+      "body": "The sort select is bound to ?sort(plays, title, created_on) in the template — the sortable set is declared there and checked at compile time, not in this Python file.",
+      "page": "^/albums$"
+    },
+    {
+      "target": "play",
+      "title": "Every tab follows",
+      "wait": {
+        "watch": "#albums"
+      },
+      "body": "Press play. Every open tab's count updates — a write plus a watch, nothing polled.",
+      "page": "^/albums$"
+    },
+    {
+      "target": "add-album",
+      "title": "Idempotent by construction",
+      "wait": {
+        "watch": "#albums"
+      },
+      "body": "Add an album twice with the same title and artist: the nested write's xid is deterministic, so the second attempt updates instead of duplicating. Then open any album for the next stop.",
+      "page": "^/albums$"
+    },
+    {
+      "target": "genres",
+      "title": "Three ways to touch a link-set",
+      "body": "Add a genre is additive (stack). Dismiss one chip removes just that one (sync). Clear removes them all (slice).",
+      "page": "^/albums/[^/]+$"
+    },
+    {
+      "tool": "console",
+      "anchor": "tabs",
+      "title": "The batch behind first paint",
+      "html": "This is <code>music.xsql</code>, the file the pages are generated from. Find the <code>@batch</code> the dashboard's first paint uses — counters and chart in one round trip."
+    }
+  ]
+}

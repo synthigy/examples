@@ -1,0 +1,21 @@
+{
+  "name": "movies",
+  "tools": {
+    "model": {
+      "erd-is-the-db": {
+        "title": "The diagram is the database",
+        "html": "This is the movie domain the guide deployed: entities with ordinary typed attributes, and the relations between them. Deploying it is what created the tables the import fills and the endpoints the console calls — nobody wrote a migration, a schema file or an API."
+      }
+    },
+    "console": {
+      "workspaces": {
+        "title": "The data layer is these files",
+        "html": "These tabs are this app's entire data layer: <code>movies.xsql</code> and <code>actors.xsql</code>, which codegen turns into the typed SDK its pages call. No resolvers, no controllers, no ORM — the model you deployed is already the API."
+      },
+      "results": {
+        "title": "The exact call your app makes",
+        "html": "Whatever just ran is the identical <code>/data</code> call the page behind you makes — no separate API, no mock data. A write here repaints the pages watching it exactly like your rating did."
+      }
+    }
+  }
+}

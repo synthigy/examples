@@ -1,0 +1,27 @@
+{
+  "name": "chat",
+  "steps": [
+    {
+      "target": "cast",
+      "title": "One query, two views",
+      "body": "Pick Alice, then Bob. Same query, same client, one token — acting_as per request decides which rooms exist for you."
+    },
+    {
+      "target": "compose",
+      "title": "Send as Alice",
+      "body": "Send a message as Alice. Open a tab as Bob and one as Carol: only the room members see it."
+    },
+    {
+      "target": "messages",
+      "title": "Filtered history, not app code",
+      "body": "Click the clock on any message: its edit timeline is a filter on one attribute, served by the audit provider — nothing here is application code.",
+      "id": "history"
+    },
+    {
+      "tool": "model",
+      "anchor": "entity",
+      "title": "The guard, in the model",
+      "body": "The Message entity carries the RLS guard that just did all of this: only an author may edit, only members may read. It ships with the model, not with this app."
+    }
+  ]
+}

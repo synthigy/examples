@@ -2,11 +2,67 @@
 .cache/
 .tmdb-cache/
 
-# Local secrets (OAuth client config for bb scripts)
-**/eywa.json
+# Large MovieLens dataset outputs — regen via `bb prep_movielens.bb`
+# or fetch from out-of-band hosting (see datasets/movies/README.md).
+# ml-latest-small (datasets/movies/movies/) is committed; larger variants
+# are derived artifacts and excluded.
+datasets/movies/movies-25m/
+datasets/movies/movies-32m/
+datasets/movies/movies-10m/
+datasets/movies/movies-1m/
+
+# Generated bench fixtures (see rls-demo/README.md for the generator)
+datasets/project-management/bench/
+
+# Codegen output — the .xsql under <domain>/xsql/ is the source of truth,
+# every language regenerates on run.
+**/generated/
+# NOT a blanket `**/gen/`: the Go example keeps a hand-written doc.go in there,
+# and git cannot re-include a file whose parent directory is excluded. Each
+# example's own gen/.gitignore names its build artifact instead.
+
+# Codegen INPUTS pulled from a running server: the compiled IR and the schema
+# snapshot. The snapshot is the whole deployed model of whatever instance did
+# the pull, so it never belongs in a public repo. Run `codegen:pull` instead.
+**/ops.ir.json
+**/*.ir.json
+**/schema.json
+**/synthigy.schema.json
+
+# Compiled binaries left next to an example's source
+rls-demo/go/rls-demo-bff
+**/*.test
+
+# Per-language dependency trees and build output
+**/node_modules/
+**/.venv/
+**/vendor/
+**/__pycache__/
+*.pyc
+**/target/
+**/out/
+
+# Setup/teardown state: which dataset an example deployed and which IAM rows
+# it minted. Per-instance, never shared.
+**/.deploy.edn
+**/generated/deploy.json
+
+# Local secrets (OAuth client config for bb scripts, direnv, env files)
 **/synthigy.json
+**/.sessions.json
+**/.envrc
 .env
-.env.local
+.env.*
+*.pem
+*.key
+
+# ...but each port's connection profile (endpoint + a pinned local demo
+# client) must be committed. A global core.excludesFile with `.env*` would
+# otherwise swallow it.
+!**/.synthigy/.env
+
+# Retired scripts and files, kept recoverable
+.attic/
 
 # Editor / OS
 .idea/
@@ -16,6 +72,9 @@
 
 # Clojure / Babashka build artifacts
 .cpcache/
+.nrepl-port
 .shadow-cljs/
-target/
 classes/
+
+# Superseded bench launchers, kept until bench.sh covers every combination
+bench/competitors/.attic/

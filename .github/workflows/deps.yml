@@ -1,0 +1,42 @@
+name: deps
+
+# Every example must be buildable by someone who only has the registries.
+# This resolves each one against the PUBLISHED SDKs. It does not run codegen
+# or start anything — both need a live Synthigy — so it stays fast and needs
+# no secrets.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # A published version can be yanked, or a transitive dep can break, without
+    # anyone touching this repo. Catch that on a weekly run rather than when
+    # someone tries the example.
+    - cron: '17 6 * * 1'
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.26', cache: false }
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+          extensions: curl, json
+
+      - uses: DeLaGuardo/setup-clojure@v13
+        with: { cli: latest }
+
+      - run: ./scripts/check-deps.sh

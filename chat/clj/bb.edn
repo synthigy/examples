@@ -1,0 +1,26 @@
+{:paths ["." "gen"]
+ :deps {org.babashka/http-client {:mvn/version "0.4.23"}
+        org.babashka/json {:mvn/version "0.1.6"}
+        hiccup/hiccup {:mvn/version "2.0.0-RC3"}
+        ;; Tyrell icon SVGs as Clojure defs (tyrell.lucide etc.)
+        dev.gersak/tyrell-icons {:mvn/version "1.0.0-RC6"}
+        com.synthigy/sdk {:mvn/version "0.2.2"}}
+
+ :tasks {setup {:doc "Deploy the chat model and seed its cast"
+                :task (shell "bb" "setup.clj")}
+
+         teardown {:doc "Destroy the dataset and remove the seeded cast"
+                   :task (shell "bb" "teardown.clj")}
+
+         serve {:doc "Run the chat BFF on :5177"
+                ;; script mode, not load-file — main.clj self-starts only when
+                ;; it is the babashka entry point, and also opens its nREPL there
+                :task (shell "bb" "main.clj")}
+
+         gen {:doc "Regenerate gen/ from ../xsql (needs a running backend)"
+              :task (exec 'synthigy.gen/generate)
+              :exec-args {:dir "../xsql" :out "gen" :ns-prefix "chat.ops"}}
+
+         gen-check {:doc "CI gate: verify gen/ matches ../xsql (needs a running backend)"
+                    :task (exec 'synthigy.gen/check)
+                    :exec-args {:dir "../xsql" :out "gen" :ns-prefix "chat.ops"}}}}
