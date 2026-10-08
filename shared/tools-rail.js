@@ -118,13 +118,12 @@
   // Bottom-left is clear in all of them. `position: "right"` overrides.
   var SIDE = cfg.position === "right" ? "right" : "left";
 
-  // The components' own login page is the engine's, not this demo's — a
-  // visitor has no way to know what to type there. `admin`/`admin` is
-  // seeded superuser on every demo instance (bootstrap-instance.sh), so it
-  // sees every domain regardless of which one this particular demo serves.
-  // Override per instance with window.SYNTHIGY_TOOLS.demoLogin = "user / pw"
-  // (or false to hide the hint entirely — e.g. once real accounts exist).
+  // `admin`/`admin` is the seeded superuser on every demo instance
+  // (bootstrap-instance.sh). The dock names it; the engine's sign-in page
+  // names it too (shared/login-page). Override with
+  // window.SYNTHIGY_TOOLS.demoLogin = "user / pw", or false to hide it.
   var DEMO_LOGIN = cfg.demoLogin !== undefined ? cfg.demoLogin : "admin / admin";
+
 
   function rememberOpen(key) {
     try { window.sessionStorage.setItem(LAST_OPEN_KEY, key); } catch (e) { /* private mode */ }
@@ -220,7 +219,6 @@
     if (mounted[tool.key]) return mounted[tool.key];
     var el = document.createElement(tool.tag);
     el.setAttribute("endpoint", endpoint);
-    if (DEMO_LOGIN) el.setAttribute("login-hint", DEMO_LOGIN);
     // Set BEFORE `open`: components read their props during init!, which runs
     // when they first see the open attribute.
     if (xsql && xsql.length) el.xsql = xsql;

@@ -24,6 +24,7 @@ echo "engine ready on :$PORT"
 
 synthigy exec -- java "@.synthigy/launch.args" clojure.main -m synthigy.ops \
   superuser add "${DEMO_USER:-admin}" "${DEMO_PASSWORD:-admin}" 2>/dev/null | tail -1
+SYNTHIGY_SERVER_PORT="$PORT" ./scripts/add-login-page.sh
 
 # client <name> <id> <secret> [port] — a port adds browser login on it.
 client() {

@@ -29,8 +29,10 @@ them: no build step, no bundler, no dependency.
   `@workspace` header (one is added from the file name if missing), so a
   returning visitor keeps their edits. Serve the demo's real `<domain>/xsql/`
   files, `.xsql` only.
-- **`demoLogin`** shows the `admin / admin` hint, since the components log in
-  through the engine's page. Local/ephemeral instances only; `false` hides it.
+- **`demoLogin`** names the demo account in the dock; `false` hides it. The
+  engine's sign-in page names it too: `bootstrap-instance.sh` serves
+  `shared/login-page` as the instance's `default` login page
+  (`scripts/add-login-page.sh`). The components carry no demo text.
 - **`SYNTHIGY_TOOLS.open("model" | "console" | "logs")`** opens a tool like a
   dock click. The rail dispatches `synthigy-tools:open` / `synthigy-tools:close`
   on `document`.
