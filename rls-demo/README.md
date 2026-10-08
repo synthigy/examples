@@ -9,6 +9,7 @@ or off. Run it from [`go/`](go/).
 ```
 rls-demo/
 ├── xsql/project.xsql        the queries, shared by every port
+├── tour.json                the guided tour (page steps + modeler + logs)
 ├── go/                      Go + Datastar + Tyrell BFF (self-seeds, RLS toggle)
 └── bench/                   load-test harness (pm-100k)
 datasets/project-management/

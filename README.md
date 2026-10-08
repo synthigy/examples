@@ -28,6 +28,7 @@ Then follow the README of the port you want; every command there is
 ```
 datasets/<domain>/      model JSON, seed data, prep scripts
 <domain>/xsql/          the .xsql templates, one copy, shared by every port
+<domain>/tour.json      the guided tour scenario, shared by every port (shared/README.md)
 <domain>/<lang>/        one port: BFF, views, README, pinned SDK dependency
 shared/                 tools rail + guided tours, served by every demo
 scripts/                instance bootstrap, dependency check, dev helpers
