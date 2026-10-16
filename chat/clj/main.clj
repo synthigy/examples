@@ -10,6 +10,11 @@
 ;;            and category; the toast shows them as they arrived.
 ;; • SQL    — the activity panel is one SQL template for everyone; the engine
 ;;            injects the guards, so each user counts only what they can read.
+;; • NOTIFY — each tab's message watch is scoped to the RECORDS of the rooms
+;;            its user may read, not to the whole entity: a message elsewhere
+;;            raises no event for it. Events carry no data; the tab re-reads as
+;;            its user, and toasts, unread badges and the tab title come from
+;;            that re-read, so a notification never shows a row RLS hides.
 ;; • /history powers the edit trail and the recovery of deleted messages.
 ;; • UI     — Tyrell web components (<ty-*>) + Datastar, both via CDN. No build.
 ;;
@@ -36,7 +41,8 @@
              "sun" L/sun "moon" L/moon "chat" L/message-circle "x" L/x
              "crown" L/crown "users" L/users "user-plus" L/user-plus "hash" L/hash
              "plus" L/plus "chart" L/chart-column "shield" L/shield-check
-             "lock" L/lock "alert" L/circle-alert "eye" L/eye "sigma" L/sigma})
+             "lock" L/lock "alert" L/circle-alert "eye" L/eye "sigma" L/sigma
+             "bell" L/bell "back" L/arrow-left})
 
 (defn icon [nm & {:keys [size cls] :or {size "sm"}}]
   [:ty-icon (cond-> {:size size} cls (assoc :class cls))
@@ -44,9 +50,15 @@
 
 ;; ── Config ─────────────────────────────────────────────────────────────────
 
-(defn env [k d] (or (System/getenv k) d))
+(defn env [k d] (let [v (System/getenv k)] (if (str/blank? v) d v)))
 
 (def endpoint (env "SYNTHIGY_ENDPOINT" "http://localhost:7887"))
+;; What the BROWSER is told to call (the tools rail talks to the engine
+;; directly). Behind a proxy that fronts both on one hostname (the sandbox)
+;; this is the public origin; SYNTHIGY_ENDPOINT stays the address we dial.
+(def public-endpoint (env "SYNTHIGY_PUBLIC_ENDPOINT" endpoint))
+;; The examples landing page, when one is in front of this demo.
+(def examples-url (env "EXAMPLES_URL" nil))
 
 (syn/connect! {:endpoint      endpoint
                :client-id     (env "SYNTHIGY_CLIENT_ID" "chat-bff")
@@ -87,6 +99,7 @@
 
 (defonce deleted-log (atom []))                 ; [{:xid :room :author}], in BFF memory
 (defonce conns (atom {}))                       ; SSE channel → its watches
+(defonce last-seen (atom {}))                   ; uid → room xid → newest published-on seen
 
 ;; ── Data (all RLS-scoped via acting_as) ────────────────────────────────────
 
@@ -173,13 +186,15 @@
 
 (defn hhmm [t] (some-> (time-str t) (#(when (>= (count %) 16) (subs % 11 16)))))
 
-(def avatar-bg {"alice" "ty-bg-primary" "bob" "ty-bg-success"
-                "charlie" "ty-bg-warning" "diana" "ty-bg-accent"})
+;; ty-bg-accent does not exist in tyrell TC31, so diana rendered colourless
+(def avatar-hue {"alice" 215 "bob" 150 "charlie" 35 "diana" 320})
 
 (defn avatar [name size]
-  [:div.shrink-0.rounded-full.grid.place-items-center.font-semibold.select-none
-   {:class (str (avatar-bg name "ty-bg-neutral") " " size)}
-   (str/upper-case (subs (str name) 0 1))])
+  (let [hue (avatar-hue name (mod (hash (str name)) 360))]
+    [:div.shrink-0.rounded-full.grid.place-items-center.font-semibold.select-none
+     {:class size
+      :style (str "background:oklch(0.42 0.11 " hue ");color:oklch(0.93 0.05 " hue ")")}
+     (str/upper-case (subs (str name) 0 1))]))
 
 (defn xids [people] (set (map :xid people)))
 
@@ -212,12 +227,13 @@
          "history.pushState(null, '', '/?user=' + encodeURIComponent($user) + '&room=' + encodeURIComponent($room)), "
          "window.dispatchEvent(new Event('chat-nav'))))")))
 
-(defn rooms-sidebar [user-key active rooms stats]
+(defn rooms-sidebar [user-key active rooms stats & [unread]]
   ;; Message counts come from the activity SQL, which the guards scope, not
   ;; from `_count`: an aggregate over a relation counts rows the user cannot
-  ;; read.
+  ;; read. Unread badges come from the tab's own re-read (`unread-counts`).
   (let [uid (user-xid user-key)
-        readable (into {} (map (juxt :room :messages)) stats)]
+        readable (into {} (map (juxt :room :messages)) stats)
+        total (reduce + 0 (vals unread))]
     [:nav#rooms.flex.flex-col.gap-1 {:data-tour "rooms"}
      [:a.flex.items-center.justify-between.px-3.py-2.rounded-lg.text-sm
       {:href (url "/" :user user-key :room "all") "data-on:click" (go "room" "all")
@@ -229,13 +245,19 @@
         {:href (url "/" :user user-key :room (:xid r)) "data-on:click" (go "room" (:xid r))
          :class (if (= (:xid r) active) "ty-bg-secondary ty-text-secondary++" "ty-text- hover:ty-text")}
         [:span.flex.items-center.justify-between.text-sm.font-medium
-         [:span.flex.items-center.gap-1 (icon "hash" :size "xs") (:name r)]
+         [:span.flex.items-center.gap-1 (icon "hash" :size "xs") (:name r)
+          (when (pos? (get unread (:xid r) 0))
+            [:ty-tag {:size "xs" :flavor "danger" :title "unread"} (str (get unread (:xid r)))])]
          [:span.flex.items-center.gap-2.t11.ty-text--
           [:span {:title "members"} (icon "users" :size "xs") " " (get-in r [:_count :members] 0)]
           [:span {:title "messages you can read"} (icon "chat" :size "xs") " " (readable (:name r) 0)]]]
         (access-chip (access uid r))])
      (when (empty? rooms)
-       [:div.t13.ty-text--.px-3.py-2 "No room lets you in yet."])]))
+       [:div.t13.ty-text--.px-3.py-2 "No room lets you in yet."])
+     ;; the tab title carries the unread total; re-run on every render
+     [:div {:id (str "title-" (System/nanoTime)) :hidden true
+            "data-init" (str "document.title=" (json/write-str (str (when (pos? total) (str "(" total ") "))
+                                                                    "Synthigy Chat · " user-key)))}]]))
 
 (defn msg-row [user-key rooms show-room? {:keys [xid content published-on author chat-room]}]
   (let [uid   (user-xid user-key)
@@ -292,6 +314,14 @@
 
 ;; Render #messages from the rows of the watch-query. No state — the rows ARE
 ;; the DB result, read AS this user; nothing is held client- or BFF-side.
+(defn room-of [m] (get-in m [:chat-room :xid]))
+
+(defn in-view
+  "The rows the current view shows. The tab watches every room it may read
+   (for its notifications); the view is one of them, or all."
+  [active rows]
+  (if (= "all" active) rows (filter #(= active (room-of %)) rows)))
+
 (defn messages-pane [user-key active rooms rows]
   (let [visible (xids rooms)
         gone?   (and (not= "all" active) (not (contains? visible active)))]
@@ -302,8 +332,8 @@
         (icon "lock" :size "md")
         "This room is no longer visible to you — its guard just decided so."]
 
-       (seq rows)
-       (for [m (sort-by :published-on rows)] (msg-row user-key rooms (= "all" active) m))
+       (seq (in-view active rows))
+       (for [m (sort-by :published-on (in-view active rows))] (msg-row user-key rooms (= "all" active) m))
 
        :else
        [:div.ty-text--.text-sm.text-center.py-10 "No messages in this view yet."])
@@ -419,6 +449,22 @@
          [:div.t11.ty-text-- "Refused by the engine: a guard in the model, not a check in this app."])]
       [:button.ty-text-.hover:ty-text {"data-on:click" "@get('/clear-toast')"} (icon "x" :size "xs")]])])
 
+;; Notifications are appended into #notifications and remove themselves:
+;; separate from #toast, which carries the engine's answer to a write.
+(defn notification [user-key {:keys [content author chat-room]}]
+  [:div.notify.ty-floating.rounded-xl.shadow-xl.px-4.py-3.flex.gap-3.items-start
+   {:id (str "n-" (System/nanoTime)) "data-init" "setTimeout(() => el.remove(), 7000)"}
+   (avatar (:name author) "w-7 h-7 text-xs")
+   [:a.flex.flex-col.gap-0.5.ty-text {:href (url "/" :user user-key :room (:xid chat-room))
+                                      "data-on:click" (go "room" (:xid chat-room))}
+    [:span.t11.ty-text--.flex.items-center.gap-1 (icon "bell" :size "xs") (:name author) " in #" (:name chat-room)]
+    [:span.t13 content]]])
+
+(defn wakes-badge [n]
+  [:span#wakes.flex.items-center.gap-1.t11.ty-text--.px-2
+   {:data-tour "wakes" :title "Times this tab's message subscription woke and re-read its rows"}
+   [:span.live-dot] (str "woke " n "×")])
+
 ;; segmented user toggle (avatar pills)
 (defn user-switcher [active room]
   [:div#cast.flex.items-center.gap-1.p-1.rounded-xl.ty-content {:data-tour "cast"}
@@ -432,9 +478,43 @@
       (avatar k "w-6 h-6 text-xs")
       [:span.text-sm.font-medium k]])])
 
-(defn tour-link [user-key active]
-  [:a#tour-link.text-xs.ty-text-.hover:ty-text.ml-1 {:href (url "/" :user user-key :room active :tour 1)}
+(defn can-read? [r uid] (#{:admin :member} (access uid r)))
+
+(defn tour-room
+  "Where the tour starts: a room of `user-key` with someone else in it and
+   someone outside it, so the notification steps have both to show."
+  [user-key rooms]
+  (let [uid (user-xid user-key)
+        others (remove #(= uid (:xid %)) (vals @people))
+        fits? (fn [r] (let [in (xids (concat (:members r) (:administrators r)))]
+                        (and (some #(in (:xid %)) others) (some #(not (in (:xid %))) others))))]
+    (or (:xid (first (filter #(and (can-read? % uid) (fits? %)) rooms)))
+        (:xid (first rooms))
+        "all")))
+
+(defn tour-link [user-key active rooms]
+  [:a#tour-link.text-xs.ty-text-.hover:ty-text.ml-1
+   {:href (url "/" :user user-key :room (tour-room user-key rooms) :tour 1)
+    :data-tour "topbar-tour"}
    "Take the tour"])
+
+(defn tour-peers
+  "The two windows the tour opens for the room in view: someone in it (opened
+   on another of their rooms, so the message arrives as a notification) and
+   someone outside it (whose tab never wakes). Re-sent with every stream,
+   because the view changes without a page load."
+  [user-key active rooms]
+  (let [uid (user-xid user-key)
+        r (first (filter #(= active (:xid %)) rooms))
+        in (when r (xids (concat (:members r) (:administrators r))))
+        others (remove #(= uid (:xid %)) (vals @people))
+        open-on (fn [p]
+                  (when p
+                    (let [theirs (map :xid (filter #(can-read? % (:xid p)) (rooms-of (:name p))))]
+                      (url "/" :user (:name p) :room (or (first (remove #{active} theirs)) "all") :peer 1))))
+        peers (when r {:peer (open-on (first (filter #(in (:xid %)) others)))
+                       :outsider (open-on (first (remove #(in (:xid %)) others)))})]
+    [:div#tour-peers {:hidden true "data-init" (str "window.CHAT_PEERS = " (json/write-str (or peers {})))}]))
 
 (defn whoami-chip [user-key]
   (let [{:keys [name roles superuser]} (try (syn/whoami :acting-as (user-xid user-key))
@@ -501,18 +581,24 @@
   ;; components talk to it directly, not to this BFF (examples/shared/
   ;; README.md); this demo runs standalone (no hub in front) so it would
   ;; otherwise default to its own origin and 404 on every /data call.
-  (str "window.SYNTHIGY_TOOLS = { endpoint: \"" endpoint "\", xsql: [\"/xsql/chat.xsql\"]"
+  (str "window.SYNTHIGY_TOOLS = { endpoint: " (json/write-str public-endpoint)
+       ", xsql: [\"/xsql/chat.xsql\"], dataset: \"Synthigy Chat\""
        (when (local-bundle?)
          ", bundle: \"/vendor/tooling/tooling.js\", bundleCss: \"/vendor/tooling/tooling.css\"")
        " };
-window.SYNTHIGY_TOUR = \"/tour.json\";"))
+window.SYNTHIGY_TOUR = \"/tour.json\";
+window.CHAT_PEERS = {};
+function chatOpen(slot, left) { var u = window.CHAT_PEERS[slot];
+  if (u) window.open(u, 'chat-' + slot, 'popup,noopener,width=560,height=820,left=' + left + ',top=60'); }
+window.CHAT_TOUR_ACTIONS = { 'open-peer': function () { chatOpen('peer', 40) },
+                             'open-outsider': function () { chatOpen('outsider', 640) } };"))
 
 ;; retry ~forever with capped backoff, so a BFF restart doesn't leave the tab deaf
 (def open-stream
   (str "@get('/stream', {filterSignals: {include: /^(user|room)$/}, openWhenHidden: true, "
        "retryMaxCount: 1000000, retryMaxWait: 10000})"))
 
-(defn page [user-key active]
+(defn page [user-key active peer?]
   (reset! people (cast-directory))
   (let [{:keys [rooms activity]} (room/overview {} :acting-as (user-xid user-key))
         room-xids (if (= "all" active) (map :xid rooms) [active])
@@ -523,7 +609,11 @@ window.SYNTHIGY_TOUR = \"/tour.json\";"))
            [:head
             [:meta {:charset "utf-8"}]
             [:meta {:name "viewport" :content "width=device-width, initial-scale=1"}]
-            [:title "Synthigy Chat"]
+            [:title (str "Synthigy Chat · " user-key)]
+            ;; A window the tour opened as someone else starts with a copy of
+            ;; the opener's sessionStorage: drop it, or the tour (and the
+            ;; opener's open tool) would resume in here too.
+            (when peer? [:script "try{sessionStorage.clear()}catch(e){}"])
             [:script {:src "https://cdn.tailwindcss.com"}]                                 ; layout/spacing
             [:link {:rel "stylesheet" :href "https://cdn.jsdelivr.net/npm/tyrell-components@1.0.0-TC31/css/tyrell.css"}]  ; components
             ;; the token layer — without it every --ty-* is undefined and the page renders unthemed
@@ -539,26 +629,35 @@ window.SYNTHIGY_TOUR = \"/tour.json\";"))
                      ty-icon:not(:defined){display:inline-flex;width:1em;height:1em}
                      ty-icon:not(:defined)[size=xs]{width:.75em;height:.75em}
                      ty-icon:not(:defined)[size=sm]{width:.875em;height:.875em}
-                     ty-icon:not(:defined) svg{width:100%;height:100%}"]]
+                     ty-icon:not(:defined) svg{width:100%;height:100%}
+                     #notifications{position:fixed;right:20px;bottom:20px;z-index:60;display:flex;flex-direction:column;gap:10px;width:340px;max-width:calc(100vw - 40px)}
+                     .notify{border-left:3px solid var(--ty-color-primary,#6aa0ff);animation:notify-in .25s ease-out}
+                     @keyframes notify-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+                     .live-dot{width:7px;height:7px;border-radius:50%;background:#3ccf7a;box-shadow:0 0 0 3px rgba(60,207,122,.2)}"]]
            [:body.ty-canvas.ty-text.t13.h-screen.flex.flex-col.overflow-hidden
             {"data-signals" (json/write-str {:user user-key :room active :loading false
                                              :editId "" :editText "" :newMember "" :opening false
                                              :roomName "" :roomDescription ""})}
             ;; ── header: brand · user toggle · whoami · theme · tour ──
             [:header.ty-elevated.border-b.ty-border-.px-5.py-2.flex.items-center.gap-4.shrink-0
+             (when examples-url
+               [:a.flex.items-center.gap-1.text-xs.ty-text-.hover:ty-text
+                {:href examples-url :data-tour "examples"}
+                (icon "back" :size "xs") "Examples"])
              [:div.flex.items-center.gap-2
               [:div.w-7.h-7.rounded-lg.ty-bg-primary.ty-text-primary++.grid.place-items-center
                (icon "chat" :size "sm")]
               [:div.flex.flex-col.leading-tight
                [:span.font-semibold.ty-text++.text-sm "Synthigy Chat"]
-               [:span.t11.ty-text-- "RLS · live · SQL · history"]]]
+               [:span.t11.ty-text-- "RLS · live · notifications · SQL"]]]
              [:div.ml-auto (user-switcher user-key active)]
              (whoami-chip user-key)
+             (wakes-badge 0)
              [:button.ty-text-.hover:ty-text.ml-1
               {:title "Toggle theme"
                "data-on:click" "document.documentElement.classList.toggle('dark')"}
               (icon "sun" :cls "hidden dark:block") (icon "moon" :cls "block dark:hidden")]
-             (tour-link user-key active)]
+             (if peer? [:span#tour-link] (tour-link user-key active rooms))]
             ;; ── three columns: rooms · conversation · room + activity ──
             ;; data-init opens the live DB-backed stream; navigation reopens it.
             ;; One URL on purpose: datastar 1.0.2 cancels the previous request
@@ -570,8 +669,10 @@ window.SYNTHIGY_TOUR = \"/tour.json\";"))
                                               "$room = new URLSearchParams(location.search).get('room') || 'all'; "
                                               nav-reset "; " open-stream)
               "data-class:loading" "$loading"}
-             [:aside.w-64.shrink-0.border-r.ty-border-.flex.flex-col.min-h-0
-              [:div.px-3.pt-3.pb-2.flex.flex-col.gap-2 {:data-tour "open-room"}
+             ;; the tour's open-room step anchors on the whole sidebar: on the
+             ;; small header row its popover sat over the form that + unfolds
+             [:aside.w-64.shrink-0.border-r.ty-border-.flex.flex-col.min-h-0 {:data-tour "open-room"}
+              [:div.px-3.pt-3.pb-2.flex.flex-col.gap-2
                [:div.flex.items-center.justify-between.pl-3
                 [:span.t11.uppercase.tracking-wide.ty-text-- "Rooms"]
                 [:ty-button {:size "xs" :appearance "ghost" :flavor "neutral" :title "Open a room"
@@ -617,9 +718,12 @@ window.SYNTHIGY_TOUR = \"/tour.json\";"))
             ;; history popover (patched in by /history) and the write toast
             [:div#panel {:data-tour "history"}]
             (toast nil)
+            [:div#notifications]
+            [:div#tour-peers]
             [:script (hu/raw-string tools-and-tour-js)]
             [:script {:src "/tools-rail.js"}]
-            [:script {:src "/scenario.js"}]]]))))
+            [:script {:src "/scenario.js"}]
+            [:script (hu/raw-string "window.SynthigyScenario && SynthigyScenario.register({actions: window.CHAT_TOUR_ACTIONS});")]]]))))
 
 (defn history-panel [_user-key xid]
   [:div#panel.fixed.bottom-24.right-6.z-50.w-80.ty-floating.rounded-xl.shadow-xl.p-4
@@ -655,6 +759,13 @@ window.SYNTHIGY_TOUR = \"/tour.json\";"))
             (str/join "\n"))
        "\n\n"))
 
+(defn append-to
+  "One element appended into `selector`, same line framing as patch-elements."
+  [selector hiccup]
+  (str "event: datastar-patch-elements\ndata: selector " selector "\ndata: mode append\n"
+       (->> (str/split (frag->html hiccup) #"\r\n|\r|\n") (map #(str "data: elements " %)) (str/join "\n"))
+       "\n\n"))
+
 (defn patch-signals [m]
   (str "event: datastar-patch-signals\ndata: signals " (json/write-str m) "\n\n"))
 
@@ -677,9 +788,44 @@ window.SYNTHIGY_TOUR = \"/tour.json\";"))
 
 ;; Each open tab gets three live, RLS-scoped watch-queries (DB-backed atoms),
 ;; all read AS this tab's user. Any change re-renders the live fragments.
-;; The message watch is scoped to the rooms the user can read right now, so
-;; when the room watch changes that set (a membership change, live), the
-;; message watch is reopened over the new set.
+;;
+;; The message watch covers EVERY room the user may read, not only the one in
+;; view — that is what its notifications come from — and it is scoped to those
+;; rooms' RECORDS (plus the rows it shows) instead of the whole entity: a
+;; message posted to any other room raises no event for this tab at all. When
+;; the room watch changes that set (a membership change, live), the message
+;; watch is reopened over the new set.
+
+(defn newest [rows] (reduce #(if (pos? (compare %2 %1)) %2 %1) "" (keep :published-on rows)))
+
+(defn mark-seen!
+  "Whatever the view shows counts as read."
+  [uid active rooms rows]
+  (doseq [r (if (= "all" active) (map :xid rooms) [active])]
+    (let [n (newest (filter #(= r (room-of %)) rows))]
+      (swap! last-seen update-in [uid r] #(if (pos? (compare n (or % ""))) n %)))))
+
+(defn unread-counts
+  "Per room: messages by others, newer than what this user last had in view."
+  [uid rooms rows]
+  (into {} (for [{r :xid} rooms
+                 :let [seen (get-in @last-seen [uid r] "")]]
+             [r (count (filter #(and (= r (room-of %))
+                                     (not= uid (get-in % [:author :xid]))
+                                     (pos? (compare (str (:published-on %)) seen)))
+                               rows))])))
+
+(defn close-messages!
+  "Close a message watch. SDK 0.2.2: with :track-rows, a refetch still in
+   flight when the watch closes re-registers its interest WITHOUT a channel,
+   and the next event then throws inside the shared dispatch loop, so no
+   watch in this process gets it. Dropping the SDK's own track-rows hook
+   first keeps a late refetch from coming back."
+  [w]
+  (remove-watch w ::render)
+  (remove-watch w :synthigy.client/track-rows)
+  (syn/close-watch! w))
+
 (defn release!
   "Closes a stream's watches once, whichever of on-open and on-close gets here last."
   [ch]
@@ -690,9 +836,7 @@ window.SYNTHIGY_TOUR = \"/tour.json\";"))
       (remove-watch stats-w ::render)
       (syn/close-watch! rooms-w)
       (syn/close-watch! stats-w)
-      (when-let [m @msgs-w]
-        (remove-watch m ::render)
-        (syn/close-watch! m)))))
+      (some-> @msgs-w close-messages!))))
 
 (defn stream [req user-key active]
   (let [uid (user-xid user-key)
@@ -706,31 +850,61 @@ window.SYNTHIGY_TOUR = \"/tour.json\";"))
                                 stats-w (room/watch-activity {} :acting-as uid :relations room-relations)
                                 msgs-w  (atom nil)
                                 scope   (atom nil)
-                                render! (fn []
-                                          (let [rooms @rooms-w]
+                                seen    (atom #{})          ; xids this tab has already shown or counted
+                                wakes   (atom 0)
+                                render! (fn [& [extra]]
+                                          (let [rooms @rooms-w
+                                                rows  (some-> @msgs-w deref)]
+                                            (mark-seen! uid active rooms rows)
+                                            ;; Three watches call this from three threads; one
+                                            ;; send at a time, or their SSE frames interleave and
+                                            ;; the browser drops the garbled event.
                                             (try
-                                              (http/send! ch (patch-elements (rooms-sidebar user-key active rooms @stats-w)
-                                                                             (messages-pane user-key active rooms (some-> @msgs-w deref))
-                                                                             (compose user-key active rooms)
-                                                                             (room-panel user-key active rooms)
-                                                                             (activity-panel user-key @stats-w))
-                                                          false)
+                                              (locking ch
+                                              (http/send! ch (str (patch-elements (rooms-sidebar user-key active rooms @stats-w
+                                                                                                 (unread-counts uid rooms rows))
+                                                                                  (messages-pane user-key active rooms rows)
+                                                                                  (compose user-key active rooms)
+                                                                                  (room-panel user-key active rooms)
+                                                                                  (activity-panel user-key @stats-w)
+                                                                                  (wakes-badge @wakes))
+                                                                  extra)
+                                                          false))
                                               (catch Throwable _ nil))))
+                                ;; A real wake-up of the message watch: count it, and
+                                ;; raise a notification for each new message by someone
+                                ;; else that is not already in view.
+                                on-messages! (fn [rows]
+                                               (swap! wakes inc)
+                                               ;; vec: realized NOW, before `seen` takes these rows in
+                                               (let [fresh (vec (remove #(or (@seen (:xid %))
+                                                                             (= uid (get-in % [:author :xid])))
+                                                                        rows))]
+                                                 (swap! seen into (map :xid rows))
+                                                 (render! (apply str (for [m fresh
+                                                                           :when (not= active "all")
+                                                                           :when (not= active (room-of m))]
+                                                                       (append-to "#notifications" (notification user-key m)))))))
+                                ;; Called from on-open and from the room watch's thread:
+                                ;; under a lock, so two calls can't both open a watch.
                                 rescope! (fn [rooms]
-                                           (let [visible (xids rooms)
-                                                 wanted  (set (if (= "all" active) visible (filter visible [active])))]
+                                           (locking scope
+                                           (let [wanted (xids rooms)]
                                              (when (and (not @closed?) (not= wanted @scope))
                                                (reset! scope wanted)
-                                               (when-let [old @msgs-w]
-                                                 (remove-watch old ::render)
-                                                 (syn/close-watch! old))
+                                               (doseq [r wanted]  ; a room first seen now starts read
+                                                 (swap! last-seen update-in [uid r] #(or % (str (java.time.Instant/now)))))
+                                               (some-> @msgs-w close-messages!)
                                                (reset! msgs-w
                                                        (when (seq wanted)
-                                                         ;; Any Chat Message change re-runs this user's
-                                                         ;; query; the guards decide what comes back.
-                                                         (doto (message/watch-list {:rooms (vec wanted)}
-                                                                                   :acting-as uid)
-                                                           (add-watch ::render (fn [_ _ _ _] (render!)))))))))]
+                                                         (let [w (message/watch-list {:rooms (vec wanted)}
+                                                                                     :acting-as uid
+                                                                                     :entity-track false
+                                                                                     :records (vec wanted)
+                                                                                     :track-rows true)]
+                                                           ;; what the new watch starts with is not news
+                                                           (swap! seen into (map :xid @w))
+                                                           (doto w (add-watch ::render (fn [_ _ _ rows] (on-messages! rows)))))))))))]
                             (rescope! @rooms-w)
                             (add-watch rooms-w ::rescope (fn [_ _ _ rooms] (rescope! rooms) (render!)))
                             (add-watch stats-w ::render (fn [_ _ _ _] (render!)))
@@ -739,11 +913,12 @@ window.SYNTHIGY_TOUR = \"/tour.json\";"))
                             ;; navigation reopens this stream without a page load: the
                             ;; user-bound header follows it here. A false send means the
                             ;; client left during on-open, before on-close could find us.
-                            (when-not (http/send! ch (str (patch-elements (user-switcher user-key active)
+                            (when-not (locking ch (http/send! ch (str (patch-elements (user-switcher user-key active)
                                                                           (whoami-chip user-key)
-                                                                          (tour-link user-key active))
+                                                                          (tour-link user-key active @rooms-w)
+                                                                          (tour-peers user-key active @rooms-w))
                                                           (patch-signals {:loading false}))
-                                                  false)
+                                                  false))
                               (release! ch)))
                         (catch Exception e
                           (release! ch)
@@ -782,8 +957,13 @@ window.SYNTHIGY_TOUR = \"/tour.json\";"))
   (case [request-method uri]
     [:get "/"]            (cond
                             user {:status 200 :headers {"Content-Type" "text/html; charset=utf-8"}
-                                  :body (page user active)}
-                            (seq @people) {:status 302 :headers {"Location" (url "/" :user (first (keys @people)) :room active)}}
+                                  :body (page user active (= "1" (get q "peer")))}
+                            ;; keep the rest of the query: the tools' OAuth sign-in comes
+                            ;; back to "/?code=…&state=…", and dropping those strands it
+                            (seq @people) {:status 302 :headers {"Location" (str (url "/" :user (first (keys @people)) :room active)
+                                                                                 (some->> (some-> (:query-string req) (str/split #"&"))
+                                                                                          (remove #(re-find #"^(user|room)=" %))
+                                                                                          seq (str/join "&") (str "&")))}}
                             :else {:status 503 :headers {"Content-Type" "text/plain; charset=utf-8"}
                                    :body "No chat cast on this engine yet: run `bb setup`, then restart the BFF."})
     [:get "/tools-rail.js"]  (serve-js "tools-rail.js")

@@ -17,14 +17,40 @@
       "body": "Everyone runs the same rooms query. Alice gets Croatia and Family, Charlie only Family. The chip says which read guard let you in: administrator, member, or a message you wrote there."
     },
     {
+      "target": "topbar-tour",
+      "title": "Two more people",
+      "body": "Notifications next, and they need an audience. Open Bob's window: he is in this room but looking at another one of his.",
+      "action": {
+        "label": "Open Bob's window",
+        "do": "open-peer"
+      }
+    },
+    {
+      "target": "topbar-tour",
+      "title": "And someone outside the room",
+      "body": "Now Charlie's window. No guard lets him read this room. Keep both windows where you can see them.",
+      "action": {
+        "label": "Open Charlie's window",
+        "do": "open-outsider"
+      }
+    },
+    {
       "target": "compose",
-      "title": "Live, and only for the room",
-      "body": "Send a message as Alice into a room. Open a second tab as Bob (?user=bob): it arrives there live if Bob is a member, never if he is not. Each tab refetches as its own user."
+      "title": "Send one message",
+      "body": "Type something and press Enter. Bob gets a notification, an unread badge on the room and a count in his tab title. Charlie gets nothing at all.",
+      "wait": {
+        "watch": "#messages"
+      }
+    },
+    {
+      "target": "wakes",
+      "title": "Notifications that cannot leak",
+      "html": "Compare the counter in each window: Bob's tab woke, Charlie's didn't. Each tab subscribes to the <em>records</em> of the rooms it may read, so a message elsewhere raises no event for it. And an event carries no data: the tab re-reads as its own user, so even a woken tab can only show a row the guards let through."
     },
     {
       "target": "members",
       "title": "Try a change you are not allowed",
-      "body": "As Bob, open #Croatia and add Charlie. The button is not hidden: the engine refuses with ROW_FORBIDDEN, because only a room's administrators may change its links. As Alice, Croatia's administrator, it works — and the room appears in Charlie's tab, live. Administrators can also delete anyone's message in their room."
+      "body": "In Bob's window, open #Croatia and add Charlie. The button is not hidden: the engine refuses with ROW_FORBIDDEN, because only a room's administrators may change its links. Here, as Alice, Croatia's administrator, it works — and the room appears in Charlie's window, live. Administrators can also delete anyone's message in their room."
     },
     {
       "target": "activity",
@@ -48,7 +74,14 @@
       "title": "The guards live in the model",
       "body": "Chat Room and Chat Message carry every rule you just met: members read, administrators change membership and moderate, authors edit. They ship with the model and apply to any client, this one included."
     },
-    { "tool": "console", "only": ["workspaces", "run", "results"] }
+    {
+      "tool": "console",
+      "only": [
+        "workspaces",
+        "run",
+        "results"
+      ]
+    }
   ],
   "tools": {
     "console": {

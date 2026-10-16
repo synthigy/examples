@@ -10,6 +10,21 @@ the token and switches identity per request with `acting_as`. Who sees which
 room, who may change it and who may edit or delete a message is decided by the
 guards in the model; this app only asks.
 
+## What only this example shows
+
+The other examples cover read guards (rls-demo), history and live queries
+(movies, music). Chat is about **people and what they may change**, and about
+**notifications that respect the guards**:
+
+- **Membership is data, and so is the right to change it.** Rooms list their
+  members and administrators; the read guards walk those links, and only a
+  room's administrators may change them. A refused change comes back typed.
+- **Notifications that cannot leak.** Each tab subscribes to the *records* of
+  the rooms its user may read, not to the whole entity, so a message elsewhere
+  raises no event for it. Events carry no data; the tab re-reads as its user,
+  and the notification, the unread badge and the tab title come from that
+  re-read. A notification can never show a row the guards hide.
+
 ## What it shows
 
 | Feature | Where to see it | Where it lives |
@@ -23,17 +38,27 @@ guards in the model; this app only asks.
 | Model constraints | open a room called Croatia: `UNIQUE_VIOLATION · conflict` | `Chat Room.Name` is unique |
 | Live, RLS-correct, membership included | add Bob to a room in one tab, it appears in Bob's tab; remove him, it disappears | `watch-rooms` with the `chat_room.members` relation interest |
 | Live messages, re-read as each user | a message, edit or delete reaches every tab that may read it | `watch-list` over the user's rooms, re-opened when that set changes |
+| Notifications under the guards | a message in a room you are not looking at: a notification, an unread badge on the room, a count in the tab title | `on-messages!` in `main.clj`, from the tab's own re-read |
+| Record-scoped subscriptions | **woke N×** in the header: post into a room and only its readers' counters move | `watch-list` with `:records` (the rooms) + `:track-rows`, `:entity-track false` |
 | Analytics under the same guards | the activity panel: one SQL template, each user's own numbers, live | `@sql-template activity` in [`chat.xsql`](../xsql/chat.xsql) |
 | Codegen and batching | `chat.ops.room/overview` fetches rooms and activity in one request | `@batch overview` |
 | Counts in the database | members per room | `_count` in `@search rooms` |
 | History | the clock on a message shows its edits; deleted messages are recovered | `/history` (`history-events`, `history-get-at`) |
-| Tools rail and tour | the "Synthigy tools" tray, bottom left: model, console (with `chat.xsql`), logs; "Take the tour" | `examples/shared/` |
+| Tools rail and tour | the "Synthigy tools" tray, bottom left: model (opens Synthigy Chat), console (with `chat.xsql`), logs; "Take the tour" | `examples/shared/` |
 
 `/history` runs as the app's client, not as the user, so the BFF first reads
 the message as the user and answers only if the guards let them. The list of
 recently deleted messages is the BFF's memory (it is gone after a restart);
 their content comes back from `/history`, shown to whoever the message's read
 guard would let in.
+
+## Tour
+
+**Take the tour** starts in a room that has both a member and an outsider. It
+walks the features above and opens Bob's and Charlie's windows for the
+notification steps; those windows do not inherit the tour. The steps are data
+in [`../tour.json`](../tour.json). If the two windows don't open, allow
+pop-ups for `localhost:5177`.
 
 ## Prerequisites
 
@@ -98,10 +123,12 @@ Set in [`.synthigy/.env`](.synthigy/.env):
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `SYNTHIGY_ENDPOINT` | `http://localhost:7887` | Synthigy base URL |
+| `SYNTHIGY_ENDPOINT` | `http://localhost:7887` | Synthigy base URL the BFF dials |
+| `SYNTHIGY_PUBLIC_ENDPOINT` | `SYNTHIGY_ENDPOINT` | Engine URL the browser's tools rail calls, when a proxy fronts both |
 | `SYNTHIGY_CLIENT_ID` | `chat-bff` | OAuth client |
 | `SYNTHIGY_CLIENT_SECRET` | `chatbff-secret` | OAuth secret |
 | `PORT` | `5177` | BFF listen port |
+| `EXAMPLES_URL` | unset | The examples landing page; when set, the header links back to it |
 
 ## The codegen step
 
@@ -133,8 +160,16 @@ administrator and member. From then on only the room's administrators may
 change it. A user cannot open a room alone under these guards: the write guard
 reaches administrators through a relation, and a new room has none yet.
 
+## SDK 0.2.2 workaround
+
+With `:track-rows`, a refetch still in flight when a watch is closed puts its
+interest back without a channel, and the next event then throws inside the
+shared dispatch loop, so no watch in the process receives it. `close-messages!`
+in `main.clj` drops the SDK's own track-rows hook before closing.
+
 ## Deliberately omitted
 
 Per-user login. The BFF holds one trusted client and selects the acting user
 from the query string, which keeps the demo about row-level security rather
-than about sessions. The movies example shows the full login flow.
+than about sessions. The movies example shows the full login flow. Unread
+counts live in the BFF's memory and reset when it restarts.
