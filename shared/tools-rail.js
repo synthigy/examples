@@ -34,7 +34,7 @@
 (function () {
   "use strict";
 
-  var TOOLING_VERSION = "0.1.13";
+  var TOOLING_VERSION = "0.1.15";
   var CDN = "https://cdn.jsdelivr.net/npm/@synthigy/tooling@" + TOOLING_VERSION + "/dist/";
   var cfg = window.SYNTHIGY_TOOLS || {};
   var endpoint = cfg.endpoint || window.location.origin;

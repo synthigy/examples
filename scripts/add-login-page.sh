@@ -41,14 +41,19 @@ curl -sf -o /dev/null -c "$tmp/cookies" \
   --data-urlencode "username=$USER_NAME" --data-urlencode "password=$USER_PASSWORD" \
   "$ENGINE/console/login"
 
+# The console screen is "Custom pages" from engine 0.3.0, "Login pages" before.
+pages=custom-pages
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$tmp/cookies" "$ENGINE/console/custom-pages")" = 200 ] \
+  || pages=login-pages
+
 landed=$(curl -sf -o /dev/null -w '%{redirect_url}' -b "$tmp/cookies" \
   -H 'Content-Type: application/zip' --data-binary @"$tmp/page.zip" \
-  "$ENGINE/console/login-pages/upload?name=$NAME")
+  "$ENGINE/console/$pages/upload?name=$NAME")
 version=$(sed -n 's/.*[?&]version=\([0-9][0-9]*\).*/\1/p' <<<"$landed")
 [ -n "$version" ] || { echo "upload failed: ${landed:-no redirect — wrong login?}" >&2; exit 1; }
 
 landed=$(curl -sf -o /dev/null -w '%{redirect_url}' -b "$tmp/cookies" -X POST \
-  "$ENGINE/console/login-pages/activate?name=$NAME&version=$version")
+  "$ENGINE/console/$pages/activate?name=$NAME&version=$version")
 case "$landed" in
   *activated=1*) echo "login page \"$NAME\" v$version served at $ENGINE/login/$NAME/" ;;
   *) echo "activate failed: ${landed:-no redirect}" >&2; exit 1 ;;
