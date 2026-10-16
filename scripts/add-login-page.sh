@@ -20,16 +20,21 @@ USER_NAME="${DEMO_USER:-admin}"
 USER_PASSWORD="${DEMO_PASSWORD:-admin}"
 NAME="${LOGIN_PAGE_NAME:-default}"
 
+# python3 where it works, else python: on Windows `python3` is often the
+# Microsoft Store alias, which exists on PATH but only prints an install hint.
+PY=$(for p in python3 python; do "$p" -c '' >/dev/null 2>&1 && { echo "$p"; break; }; done)
+[ -n "$PY" ] || { echo "needs Python 3 (python3 or python on PATH)" >&2; exit 1; }
+
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-python3 - shared/login-page "$tmp/page.zip" "$USER_NAME" "$USER_PASSWORD" <<'EOF'
+"$PY" - shared/login-page "$tmp/page.zip" "$USER_NAME" "$USER_PASSWORD" <<'EOF'
 import pathlib, sys, zipfile
 src, out, user, password = sys.argv[1:]
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     for f in sorted(pathlib.Path(src).iterdir()):
-        text = f.read_text().replace("{{DEMO_USER}}", user).replace("{{DEMO_PASSWORD}}", password)
-        z.writestr(f.name, text)
+        text = f.read_text(encoding="utf-8").replace("{{DEMO_USER}}", user).replace("{{DEMO_PASSWORD}}", password)
+        z.writestr(f.name, text.encode("utf-8"))
 EOF
 
 curl -sf -o /dev/null -c "$tmp/cookies" \

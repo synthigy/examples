@@ -16,6 +16,7 @@ them: no build step, no bundler, no dependency.
   window.SYNTHIGY_TOOLS = {
     endpoint: "<the BFF's own SYNTHIGY_ENDPOINT>",   // the ENGINE, not this page
     xsql: ["/xsql/your-domain.xsql"],                // opens as console tabs
+    // dataset: "Your Dataset",                      // opened in the modeler
     // position: "right", demoLogin: "user / pw" | false
   };
 </script>
@@ -29,6 +30,10 @@ them: no build step, no bundler, no dependency.
   `@workspace` header (one is added from the file name if missing), so a
   returning visitor keeps their edits. Serve the demo's real `<domain>/xsql/`
   files, `.xsql` only.
+- **`dataset`** names the dataset the modeler opens. Without it the modeler
+  starts on an empty canvas and a tour step anchored on an entity is skipped.
+  The rail picks it from the modeler's Open Dataset list, only while the
+  canvas is empty.
 - **`demoLogin`** names the demo account in the dock; `false` hides it. The
   engine's sign-in page names it too: `bootstrap-instance.sh` serves
   `shared/login-page` as the instance's `default` login page

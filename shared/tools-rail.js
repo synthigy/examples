@@ -253,11 +253,43 @@
     Promise.all([loadBundle(), loadXsql()]).then(function (r) {
       if (btn) btn.removeAttribute("aria-busy");
       var el = mount(tool, r[1]);
-      if (show !== false) { el.setAttribute("open", ""); notify("open", tool.key); }
+      if (show !== false) {
+        el.setAttribute("open", "");
+        notify("open", tool.key);
+        if (tool.key === "model") openDataset(el);
+      }
     }, function (err) {
       if (btn) btn.removeAttribute("aria-busy");
       if (show !== false) window.alert("Couldn't load Synthigy tooling: " + err.message);
     });
+  }
+
+  // `dataset`: the modeler starts on an empty canvas until a dataset is
+  // picked, which a first-time visitor (and a tour step anchored on an entity)
+  // never gets past. Name the demo's dataset and the rail picks it through the
+  // modeler's own Open Dataset list — only while the canvas is still empty, so
+  // a dataset the visitor opened is never replaced. Behind Sign In nothing is
+  // there to click; the open after the sign-in redirect comes back here.
+  function openDataset(el) {
+    var name = cfg.dataset;
+    if (!name) return;
+    var tries = 0, asked = false;
+    (function poll() {
+      if (!el.hasAttribute("open") || ++tries > 200) return;
+      var root = el.shadowRoot;
+      if (root) {
+        if (root.querySelector(".entity-box")) return;
+        var items = root.querySelectorAll(".dataset-item");
+        for (var i = 0; i < items.length; i++) {
+          var label = items[i].querySelector(".dataset-item-name");
+          if (label && label.textContent.trim() === name) { items[i].click(); return; }
+        }
+        // The first action-bar button is Open Dataset.
+        var open = !items.length && !asked && root.querySelector(".action-btn");
+        if (open) { open.click(); asked = true; }
+      }
+      setTimeout(poll, 100);
+    })();
   }
 
   function buildDock() {
