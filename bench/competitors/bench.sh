@@ -24,12 +24,14 @@
 #                   dev  = :dev alias autoboots the full :synthigy/server
 #                   bare = no :dev, then lifecycle/start! :synthigy/bare-server
 #   --harness     import | parallel | pure | http | search | concurrency |
-#                 depth | history | setentity | waterfall | profile | none
+#                 depth | history | setentity | waterfall | profile | none |
+#                 hold (boot, write the token to $HOLD_TOKEN_FILE, wait until killed)
 #   --batch N     rows per sync-entity call      (default 1000)
 #   --workers N   parallel harness workers       (default 4)
 #   --client      none | su | nonsu              (default none; http in dev mode needs one —
 #                   bare mode is engine-only: no IAM, every request accepted, --client ignored)
 #   --no-triggers disable user triggers after deploy (postgres only)
+#   --server      httpkit | enso | ring-jetty    (default httpkit)
 #   --port N      engine HTTP port               (default 7888)
 #   --nrepl N     nREPL port                     (default 8901)
 #   --reset / --no-reset   force DB reset on or off
@@ -50,7 +52,7 @@ command -v synthigy >/dev/null 2>&1 || {
 }
 
 DB=sqlite OBS=none AUDIT=false MODE=dev HARNESS=import
-BATCH=1000 WORKERS=4 CLIENT=none NO_TRIGGERS=false
+BATCH=1000 WORKERS=4 CLIENT=none NO_TRIGGERS=false SERVER=httpkit
 PORT=7888 NREPL_PORT=8901 RESET=auto
 
 while [[ $# -gt 0 ]]; do
@@ -65,6 +67,7 @@ while [[ $# -gt 0 ]]; do
     --client)      CLIENT="$2"; shift 2 ;;
     --no-triggers) NO_TRIGGERS=true; shift ;;
     --port)        PORT="$2"; shift 2 ;;
+    --server)      SERVER="$2"; shift 2 ;;
     --nrepl)       NREPL_PORT="$2"; shift 2 ;;
     --reset)       RESET=true; shift ;;
     --no-reset)    RESET=false; shift ;;
@@ -105,7 +108,7 @@ LOG="/tmp/synthigy-bench-$DB-$OBS.log"
 RESULT="/tmp/synthigy-bench-$DB-$OBS-result.edn"
 
 case "$HARNESS" in
-  search|concurrency|depth|history) READ_ONLY=true ;;
+  search|concurrency|depth|history|hold) READ_ONLY=true ;;
   *)                        READ_ONLY=false ;;
 esac
 [[ "$RESET" == auto ]] && { [[ "$READ_ONLY" == true ]] && RESET=false || RESET=true; }
@@ -155,7 +158,7 @@ case "$OBS" in
   clickhouse) ALIAS="$ALIAS:lib-clickhouse:audit-clickhouse:log-clickhouse" ;;
   *)          ALIAS="$ALIAS:audit-memory:log-memory" ;;
 esac
-ALIAS="$ALIAS:server-httpkit"
+ALIAS="$ALIAS:server-$SERVER"
 [[ "$MODE" == dev ]] && ALIAS="$ALIAS:dev"
 
 # :dev is the only alias that carries nrepl, so bare mode has to add it.
@@ -275,6 +278,9 @@ case "$HARNESS" in
                   CONFIG="$DB${OBS:+ + $OBS} mode=$MODE audit=$AUDIT" \
                   node competitors/synthigy_http.mjs "$BATCH") ;;
   none)        echo "=== Booted; no harness (--harness none) ===" ;;
+  hold)        [[ -n "${HOLD_TOKEN_FILE:-}" ]] && printf '%s' "$TOKEN" > "$HOLD_TOKEN_FILE"
+               echo "=== Holding $SERVER_URL for external load; kill this script to stop ==="
+               wait "$REPL_PID" ;;
   *)           echo "unknown --harness: $HARNESS" >&2; exit 1 ;;
 esac
 
