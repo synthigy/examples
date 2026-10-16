@@ -1,0 +1,6 @@
+# Parsers and shells here expect LF: the XSQL parser rejects "\r", and bash
+# scripts break on it. Without this, core.autocrlf=true (Git for Windows'
+# default) checks everything out as CRLF.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
