@@ -132,6 +132,19 @@
     if (n < 2) setTimeout(function () { keepTargetClear(selector, api, n + 2); }, 400);
   }
 
+  // The footer's crowd button relabels itself ("Crowd · 12 ratings · 9s")
+  // from the `crowd` signal the moment the server starts one — whoever
+  // pressed it, in whichever tab.
+  function whenCrowdStartsUnlockNext(api) {
+    var btn = document.querySelector('[data-tour="crowd"]');
+    if (!btn) return null;
+    var check = function () { if (/Crowd ·/.test(btn.textContent || "")) api.showButton("next"); };
+    var mo = new MutationObserver(check);
+    mo.observe(btn, { childList: true, characterData: true, subtree: true });
+    check();
+    return function () { mo.disconnect(); };
+  }
+
   function whenRatedUnlockNext(api, selector) {
     var card = document.querySelector(selector);
     if (!card) return null;
@@ -205,6 +218,44 @@
       popover: {
         title: "That was the engine's event, not the form",
         description: "Synthigy emitted one change for that rating. The detail watch here, the list watch in one companion window, the dashboard watch in the other — and, if you scanned the code, a phone on a different network — all came from that one event. Datastar painted the patches; Synthigy is why there was anything to paint.",
+      },
+    },
+    {
+      // Footer button, on every page — no page gate.
+      id: "crowd",
+      element: '[data-tour="crowd"]',
+      popover: {
+        title: "One rating was easy. Let a crowd in.",
+        description: "For fifteen seconds the server rates the movies on the first page — and this one — a few times a second, like a launch-day rush."
+          + '<div class="tour-actions">'
+          + '<ty-button size="sm" flavor="primary" appearance="outlined" data-act="start-crowd">Let a crowd in</ty-button>'
+          + '</div>'
+          + '<p class="tour-hint">Watch the rating count on this page and your companion window. Nothing here polls and nothing repaints on purpose — every number that moves is a watch reacting to a write it did not make. Next appears once the crowd is in.</p>',
+        showButtons: ["previous", "close"],
+      },
+      arm: function (api) { return whenCrowdStartsUnlockNext(api); },
+    },
+    {
+      id: "history",
+      page: /^\/movies\/[^/]+$/,
+      element: '[data-tour="history"]',
+      popover: {
+        title: "Every change is remembered",
+        description: "The model sets one flag on Movie — <code>audit/persist</code> — and the engine keeps every attribute change: who, when, and what it replaced. This panel is <code>client.history.events()</code>. Nobody wrote an audit table, a trigger or a log."
+          + '<p class="tour-hint"><strong>Edit</strong> the title above and save: the change lands here, in every open tab. <strong>Restore</strong> puts it back from <code>history.getAt()</code> — and the restore is recorded too.</p>',
+      },
+    },
+    {
+      id: "model-live",
+      page: /^\/movies\/[^/]+$/,
+      element: '[data-tour="extra-fields"]',
+      popover: {
+        title: "The page reads the model, not just the data",
+        description: "The typed client was generated for title, year and poster. This panel asks the engine what Movie has <em>now</em>. Add an attribute to Movie in the modeler — a <code>Tagline</code>, say — and deploy: it appears here, editable, in every open tab. No restart, no codegen."
+          + '<div class="tour-actions">'
+          + '<ty-button size="sm" flavor="primary" appearance="outlined" data-act="open-model">Open the modeler</ty-button>'
+          + '</div>'
+          + '<p class="tour-hint">In the modeler (signed in as <code>admin</code> / <code>admin</code>): the cube at the bottom opens <strong>Movies Example</strong>; add an attribute to Movie, then deploy. Close the modeler and the tour picks up here.</p>',
       },
     },
     {
@@ -322,6 +373,23 @@
       if (!scenario()) return;
       api.pause();
       scenario().tool("console", { push: true });
+    },
+    // Press the real footer button, so the tour starts exactly what a visitor
+    // pressing it would (its @post sends this page's path, which is how the
+    // crowd knows to pile onto this movie).
+    "start-crowd": function (api, btn) {
+      var real = document.querySelector('[data-tour="crowd"]');
+      if (real) real.click();
+      if (btn) { btn.removeAttribute("data-act"); btn.setAttribute("disabled", ""); }
+    },
+    // Unlike the console hand-off above, no tool tour here: the visitor needs
+    // the modeler open to ADD an attribute, and a tool lane closes the tool
+    // when it ends. Step aside instead, and come back to this same step when
+    // the modeler closes — by then the new field is on the page.
+    "open-model": function (api) {
+      if (!window.SYNTHIGY_TOOLS) return;
+      api.pauseUntil("synthigy-tools:close");
+      window.SYNTHIGY_TOOLS.open("model");
     },
     "copy-dashboard": function (api, btn) {
       if (!navigator.clipboard) return;

@@ -82,6 +82,19 @@ SELECT m.n          AS total_movies,
        ma.n         AS total_actors
 FROM m, r, ma
 
+@sql-template by_year
+@description "Movies per release year, plus the running total — how the catalog grew over time."
+@namespace dashboard
+@watch movie
+@returns year:int, movies:int, cumulative:int
+SELECT release_year                                        AS year,
+       count(*)::int                                       AS movies,
+       (sum(count(*)) OVER (ORDER BY release_year))::int   AS cumulative
+FROM {movie}
+WHERE release_year IS NOT NULL
+GROUP BY release_year
+ORDER BY release_year
+
 @sql-template progress
 @description "Guide progress — live row count of every seeded entity, in import order. The same template the console runs."
 @namespace demo

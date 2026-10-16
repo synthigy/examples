@@ -4,11 +4,11 @@
 import { readFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import type { SynthigyClient } from "../../../../sdk/js/src/index.js"
+import type { SynthigyClient } from "@synthigy/sdk"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 export const DATASETS = join(HERE, "..", "..", "..", "datasets", "movies")
-export const EXPORT_PATH = join(DATASETS, "Movies Example@0.4.json")
+export const EXPORT_PATH = join(DATASETS, "Movies Example@0.5.json")
 const SEED_DIR = join(DATASETS, "movies")
 
 export type SeedPhaseKey =

@@ -39,6 +39,14 @@ onJobEvent(({ type, job }) => {
   if (type === "start" && job.kind === "destroy") broadcastReload()
 })
 
+// The same set of open page streams, for anything every tab should hear at
+// once (the crowd's progress, a model deploy).
+export function broadcast(write: (res: ServerResponse) => void) {
+  for (const res of responses) {
+    try { write(res) } catch { /* dead stream */ }
+  }
+}
+
 export function snapshot(): Record<PresenceKind, number> {
   return { ...counts }
 }

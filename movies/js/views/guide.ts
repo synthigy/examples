@@ -62,7 +62,7 @@ export function guidePage({ user, state }: { user: any; state: DemoState }) {
       <section class="guide-hero ty-elevated mt-6 mb-8 px-10 py-9 rounded-lg border max-[560px]:px-5 max-[560px]:py-6" data-tour="guide-hero">
         <div class="flex flex-wrap gap-2 mb-[18px]">
           <ty-tag flavor="primary" size="sm">${renderIcon("zap", { slot: "start", size: "sm" })} Live import</ty-tag>
-          <ty-tag flavor="neutral" size="sm">${renderIcon("database", { slot: "start", size: "sm" })} Movies Example 0.4</ty-tag>
+          <ty-tag flavor="neutral" size="sm">${renderIcon("database", { slot: "start", size: "sm" })} Movies Example 0.5</ty-tag>
         </div>
         <h1 class="m-0 mb-3 text-[1.7rem] font-bold tracking-[-0.02em]">
           Deploy a model. Import a hundred thousand ratings. Watch it go live.
@@ -118,9 +118,10 @@ export function guidePage({ user, state }: { user: any; state: DemoState }) {
             <p class="hint mb-3 max-w-[62ch]">
               A data model here is the ERD itself — entities, their attributes and the
               relations between them — kept as one versioned document instead of a pile
-              of migration scripts. This one is <strong>Movies Example 0.4</strong>: five
+              of migration scripts. This one is <strong>Movies Example 0.5</strong>: five
               entities (Movie, Movie Actor, Movie Genre, User Rating, User Tag) and four
-              relations, 8&nbsp;kB of it.
+              relations, 8&nbsp;kB of it — with history switched on for Movie, so every
+              edit to a movie is kept.
             </p>
             <p class="hint mb-4 max-w-[62ch]">
               Deploying sends that document to the engine untouched. The engine reconciles

@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e79b6d0949cdc0f2a5fc8cb351fbe7bc",
+    "content-hash": "091347cdc1733ae1ea2ae8c6319b2354",
     "packages": [
         {
             "name": "synthigy/sdk",
-            "version": "v0.1.0",
+            "version": "v0.2.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/synthigy/php.git",
-                "reference": "7ae4ad139cdebbf86013510917dc577cd0d3a0ae"
+                "reference": "8edcc8218d40ae25092d6d778466c5cdb4142ea0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/synthigy/php/zipball/7ae4ad139cdebbf86013510917dc577cd0d3a0ae",
-                "reference": "7ae4ad139cdebbf86013510917dc577cd0d3a0ae",
+                "url": "https://api.github.com/repos/synthigy/php/zipball/8edcc8218d40ae25092d6d778466c5cdb4142ea0",
+                "reference": "8edcc8218d40ae25092d6d778466c5cdb4142ea0",
                 "shasum": ""
             },
             "require": {
@@ -28,6 +28,9 @@
             "require-dev": {
                 "phpstan/phpstan": "^2.2",
                 "phpunit/phpunit": "^10.5"
+            },
+            "suggest": {
+                "ext-session": "Needed by SessionLoginStore"
             },
             "bin": [
                 "bin/synthigy-codegen"
@@ -71,7 +74,7 @@
                 "issues": "https://github.com/synthigy/php/issues",
                 "source": "https://github.com/synthigy/php"
             },
-            "time": "2026-09-11T15:56:43+00:00"
+            "time": "2026-10-03T08:07:02+00:00"
         }
     ],
     "packages-dev": [],

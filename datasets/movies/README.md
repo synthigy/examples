@@ -4,7 +4,8 @@ The model and seed data behind the `movies` examples and `bench/`.
 
 | Path | What |
 |---|---|
-| `Movies Example@0.4.json` | Deployable model (transit-ish JSON export) — includes `MovieActor.Avatar` and `Movie.Poster` |
+| `Movies Example@0.5.json` | Deployable model (transit-ish JSON export) — 0.4 plus `audit/persist` on Movie, so every movie edit is kept (`client.history`). What movies/js deploys |
+| `Movies Example@0.4.json` | The same model without history — includes `MovieActor.Avatar` and `Movie.Poster`. What bench/ and the go/php ports deploy |
 | `movies/` | ml-latest-small import payloads — committed |
 | `movies-25m/` | ml-25m, sharded — derived, gitignored |
 

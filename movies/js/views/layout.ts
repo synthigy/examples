@@ -3,6 +3,7 @@ import { resolve } from "node:path"
 import { esc } from "../lib/bff.ts"
 import { icon } from "../lib/icons.ts"
 import { peekPhase } from "../lib/demo-state.ts"
+import { crowdState } from "../lib/crowd.ts"
 import { confirmDestroyModal } from "./guide.ts"
 
 // The tools rail's components talk to the Synthigy engine directly, not to
@@ -239,6 +240,7 @@ export function layout({ title, user, content, stream, fill }: LayoutProps) {
                  max-[560px]:px-3 max-[560px]:py-2 max-[560px]:gap-2">
     <div class="flex flex-wrap items-center gap-2">
       <div id="footer-tools" class="flex flex-wrap items-center gap-2"></div>
+      ${phase === "ready" ? crowdButton() : ""}
       ${canDestroy
         ? `<ty-button size="sm" flavor="danger" appearance="outlined" data-tour="destroy"
                       data-on:click="$confirmDestroy = true">
@@ -336,6 +338,21 @@ export function layout({ title, user, content, stream, fill }: LayoutProps) {
   <script src="/scenario.js"></script>
 </body>
 </html>`
+}
+
+// Starts lib/crowd.ts. Every page's stream receives the crowd's progress as
+// the `crowd` signal (serve.ts broadcasts it), so a tab opened mid-run picks up
+// where the server-rendered initial value leaves off. Posting the current path
+// lets a crowd started from a detail page pile onto that movie.
+function crowdButton() {
+  return /* html */ `<span class="contents" data-signals="${esc(JSON.stringify({ crowd: crowdState() }))}">
+    <ty-button size="sm" flavor="primary" appearance="outlined" data-tour="crowd"
+               data-attr:disabled="$crowd.running"
+               data-on:click="@post('/demo/crowd?from=' + encodeURIComponent(location.pathname))">
+      ${icon("users", { slot: "start", size: "sm" })}
+      <span data-text="$crowd.running ? ('Crowd · ' + $crowd.written + ' ratings · ' + $crowd.left + 's') : 'Let a crowd in'">Let a crowd in</span>
+    </ty-button>
+  </span>`
 }
 
 // Share panel — the instance has a public address, so hand it over: the link

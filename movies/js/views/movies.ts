@@ -2,6 +2,8 @@ import { layout } from "./layout.ts";
 import { esc } from "../lib/bff.ts";
 import { icon as renderIcon } from "../lib/icons.ts";
 import type { MovieList, MovieDetail, MovieActorList, MovieGenreList } from "../generated/ops.ts";
+import { EDITABLE_TYPES, type MovieField } from "../lib/movie-model.ts";
+import type { HistoryEntry } from "../lib/movie-history.ts";
 
 // Projection sub-shapes (the nested types the generated row types expose).
 type Genre = NonNullable<MovieList["genres"]>[number];
@@ -216,7 +218,13 @@ export function movieRow(m: MovieList, { fresh = false, tour = false }: { fresh?
   </li>`;
 }
 
-export function movieDetailCard(movie: MovieDetail) {
+// The two panels below the card that are NOT part of the typed watchDetail()
+// projection: fields from the modeler and the audit history. serve.ts renders
+// them separately (they need their own reads) and hands the latest HTML back
+// in every time the card itself re-renders, so a card repaint never blanks them.
+export type DetailSide = { extras?: string; history?: string };
+
+export function movieDetailCard(movie: MovieDetail, side: DetailSide = {}) {
   const genres = movie.genres ?? [];
   const actors = (movie.actors ?? []).slice().sort(byActorName);
   const ratings = (movie.movie_ratings ?? []).slice().sort(byRatingTimeDesc);
@@ -294,6 +302,9 @@ export function movieDetailCard(movie: MovieDetail) {
       </div>
     </article>
 
+    <div id="movie-extras">${side.extras ?? ""}</div>
+    <div id="movie-history">${side.history ?? ""}</div>
+
     <section class="mb-8">
       <h2 class="section-title m-0 mb-3.5 flex items-center gap-2 text-[0.78rem]">
         ${renderIcon("users", { size: "sm" })}
@@ -324,15 +335,133 @@ export function movieDetailCard(movie: MovieDetail) {
   </section>`;
 }
 
-export function movieDetailPage({ user, movie, actors = [], genres = [] }: {
-  user: any; movie: MovieDetail; actors?: MovieActorList[]; genres?: MovieGenreList[];
+export function movieDetailPage({ user, movie, actors = [], genres = [], side = {} }: {
+  user: any; movie: MovieDetail; actors?: MovieActorList[]; genres?: MovieGenreList[]; side?: DetailSide;
 }) {
   return layout({
     title: movie.title ?? "Movie",
     user,
     stream: `/stream/movies/${encodeURIComponent(movie.xid)}`,
-    content: movieDetailCard(movie) + movieModal({ movie, actors, genres }),
+    content: movieDetailCard(movie, side) + movieModal({ movie, actors, genres }),
   });
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Fields from the modeler — attributes on Movie that the generated client
+// does not know about, read from the live schema (lib/movie-model.ts).
+// ──────────────────────────────────────────────────────────────────────────
+
+export function extrasPanel(xid: string, extras: MovieField[], values: Record<string, unknown>) {
+  const rows = extras.map((f) => extraRow(xid, f, values[f.name])).join("");
+  return /* html */ `<section class="mb-8" data-tour="extra-fields">
+    <h2 class="section-title m-0 mb-3.5 flex items-center gap-2 text-[0.78rem]">
+      ${renderIcon("blocks", { size: "sm" })}
+      Fields from the modeler <span class="section-count px-[9px] py-0.5 rounded-full ml-1">${extras.length}</span>
+    </h2>
+    ${
+      extras.length
+        ? `<div class="extras rounded-lg border overflow-hidden">${rows}</div>`
+        : /* html */ `<div class="empty-panel extras-empty m-0 px-[22px] py-[18px] rounded-lg">
+            <p class="m-0 mb-3">
+              This app was generated for <code>title</code>, <code>release_year</code> and
+              <code>poster</code> — nothing else. Add an attribute to <strong>Movie</strong> in the
+              modeler and deploy: it shows up here, editable, without a restart or a codegen run.
+            </p>
+            <ty-button size="sm" flavor="success" onclick="window.SYNTHIGY_TOOLS && SYNTHIGY_TOOLS.open('model')">
+              ${renderIcon("external-link", { slot: "start", size: "sm" })}
+              Open the modeler
+            </ty-button>
+          </div>`
+    }
+  </section>`;
+}
+
+function extraRow(xid: string, f: MovieField, value: unknown) {
+  const label = /* html */ `<span class="extra-name"><code>${esc(f.name)}</code><span class="extra-type">${esc(f.type)}</span></span>`;
+  if (!EDITABLE_TYPES.has(f.type)) {
+    return /* html */ `<div class="extra-row">${label}<code class="extra-value">${esc(formatValue(value))}</code></div>`;
+  }
+  const text = value == null ? "" : String(value);
+  // Attribute names are snake_case identifiers, so they are safe both as a
+  // signal key and inside the expression.
+  return /* html */ `<form class="extra-row" data-signals="${esc(JSON.stringify({ xf: { [f.name]: text } }))}"
+        data-on:submit__prevent="@post('/movies/${esc(xid)}/field?name=${esc(f.name)}')">
+    ${label}
+    <ty-input size="sm" value="${esc(text)}" placeholder="${f.type === "boolean" ? "true / false" : "empty"}"
+              data-on:input="$xf.${f.name} = evt.detail.value">
+      <ty-button slot="end" flavor="primary" type="submit" size="sm">
+        ${renderIcon("save", { slot: "start", size: "sm" })}
+        Save
+      </ty-button>
+    </ty-input>
+  </form>`;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// History — the movie's audit trail (lib/movie-history.ts)
+// ──────────────────────────────────────────────────────────────────────────
+
+const HISTORY_ROWS = 8;
+
+export function historyPanel(xid: string, entries: HistoryEntry[], error: string | null = null) {
+  return /* html */ `<section class="mb-8" data-tour="history">
+    <h2 class="section-title m-0 mb-3.5 flex items-center gap-2 text-[0.78rem]">
+      ${renderIcon("history", { size: "sm" })}
+      History <span class="section-count px-[9px] py-0.5 rounded-full ml-1">${entries.length}</span>
+      <span class="section-hint ml-auto">audit/persist · <code>client.history</code></span>
+    </h2>
+    ${
+      error
+        ? `<p class="empty-panel m-0 px-[22px] py-[18px] rounded-lg">History unavailable: ${esc(error)}</p>`
+        : entries.length
+          ? `<ol class="history list-none p-0 m-0 rounded-lg border overflow-hidden">
+               ${entries.slice(0, HISTORY_ROWS).map((e) => historyRow(xid, e)).join("")}
+             </ol>`
+          : `<p class="empty-panel m-0 px-[22px] py-[18px] rounded-lg">
+               No changes recorded yet. Edit the title or a field above — every save
+               lands here: who made it, when, and what it replaced.
+             </p>`
+    }
+  </section>`;
+}
+
+function historyRow(xid: string, e: HistoryEntry) {
+  const verb = e.op === "insert" ? "created it" : "changed";
+  const changes = e.fields.map((f) => /* html */ `<div class="history-field">
+      <code>${esc(f.name)}</code>
+      ${f.knownFrom
+        ? `<del>${esc(formatValue(f.from))}</del><span class="history-arrow">→</span>`
+        : e.op === "insert" ? "" : `<span class="history-unknown" title="This movie was imported before history was turned on for Movie">earlier value not recorded</span><span class="history-arrow">→</span>`}
+      <ins>${esc(formatValue(f.to))}</ins>
+    </div>`).join("");
+  // Restore puts the fields this change touched back the way they were just
+  // before it — itself a new change, so it shows up here as one more row.
+  const restore = e.restorable
+    ? /* html */ `<ty-button size="sm" flavor="neutral" appearance="outlined" title="Put ${esc(e.fields.map((f) => f.name).join(", "))} back the way ${e.fields.length === 1 ? "it was" : "they were"} before this change"
+                 data-on:click="@post('/movies/${esc(xid)}/restore?at=${encodeURIComponent(e.ts)}')">
+        ${renderIcon("undo", { slot: "start", size: "sm" })}
+        Restore
+      </ty-button>`
+    : "";
+  return /* html */ `<li class="history-row">
+    <time class="history-ts tabular-nums" datetime="${esc(e.ts)}">${esc(formatTsSeconds(e.ts))}</time>
+    <div class="min-w-0">
+      <div class="history-who"><strong>${esc(e.actor)}</strong> ${verb}</div>
+      ${changes}
+    </div>
+    <div>${restore}</div>
+  </li>`;
+}
+
+function formatValue(v: unknown): string {
+  if (v === undefined || v === null || v === "") return "empty";
+  const s = typeof v === "string" ? `“${v}”` : typeof v === "object" ? JSON.stringify(v) : String(v);
+  return s.length > 80 ? s.slice(0, 79) + "…" : s;
+}
+
+function formatTsSeconds(iso: string) {
+  const m = String(iso).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})/);
+  return m ? `${m[1]} ${m[2]}` : iso;
 }
 
 // Single actor card — linked to actor detail if xid is present.
@@ -638,7 +767,7 @@ export function movieModal({ movie, actors = [], genres = [] }: {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Dashboard (unchanged)
+// Dashboard
 // ──────────────────────────────────────────────────────────────────────────
 
 export function dashboardPage({ user }: { user: any }) {
@@ -666,9 +795,91 @@ export function dashboardPage({ user }: { user: any }) {
           ${counterTile({ id: "counter-actors-val", label: "Actors", icon: "users" })}
         </div>
 
+        ${yearCharts([])}
+
       </section>
     `,
   });
+}
+
+// ── Movies by release year ─────────────────────────────────────────────────
+// Plain server-rendered SVG, re-patched whole on every result/changed from
+// Dashboard.watchByYear() — no chart library, no client JS. Bars for each
+// year, then the running total as an area so growth spurts read as slope.
+
+type YearRow = { year: number; movies: number; cumulative: number }
+
+const CW = 800, CH = 200, PAD_L = 44, PAD_R = 12, PAD_T = 12, PAD_B = 26
+
+export function yearCharts(rows: YearRow[]) {
+  const body = rows.length
+    ? `${chartCard("Movies per year", "Releases in each year — where the catalog is dense.", barChart(rows))}
+       ${chartCard("Catalog growth", "Running total by release year — steeper slope, faster growth.", growthChart(rows))}`
+    : `<p class="hint">Loading…</p>`
+  return /* html */ `<div id="year-charts" class="grid grid-cols-1 gap-3.5 mt-6">${body}</div>`
+}
+
+function chartCard(title: string, hint: string, svg: string) {
+  return /* html */ `<div class="counter p-[18px] max-[560px]:p-3 rounded-lg border">
+    <h2 class="text-[1rem] font-semibold mb-0.5">${esc(title)}</h2>
+    <p class="hint m-0 mb-3 text-[0.85rem]">${esc(hint)}</p>
+    ${svg}
+  </div>`
+}
+
+function niceMax(v: number) {
+  if (v <= 0) return 1
+  const p = 10 ** Math.floor(Math.log10(v))
+  for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p
+  return 10 * p
+}
+
+function axes(rows: YearRow[], yMax: number, x: (yr: number) => number, y: (v: number) => number) {
+  const first = rows[0].year, last = rows[rows.length - 1].year
+  const grid = [0, 0.5, 1].map(f => {
+    const v = yMax * f, yy = y(v).toFixed(1)
+    return `<line class="chart-grid" x1="${PAD_L}" x2="${CW - PAD_R}" y1="${yy}" y2="${yy}"/>
+      <text class="chart-tick" x="${PAD_L - 6}" y="${yy}" text-anchor="end" dominant-baseline="middle">${Math.round(v).toLocaleString("en-US")}</text>`
+  }).join("")
+  const step = last - first > 60 ? 20 : 10
+  const ticks: string[] = []
+  for (let yr = Math.ceil(first / step) * step; yr <= last; yr += step)
+    ticks.push(`<text class="chart-tick" x="${x(yr).toFixed(1)}" y="${CH - 8}" text-anchor="middle">${yr}</text>`)
+  return grid + ticks.join("")
+}
+
+function svgWrap(label: string, inner: string) {
+  return `<svg class="year-chart" viewBox="0 0 ${CW} ${CH}" role="img" aria-label="${esc(label)}">${inner}</svg>`
+}
+
+function barChart(rows: YearRow[]) {
+  const first = rows[0].year, last = rows[rows.length - 1].year
+  const span = Math.max(1, last - first + 1)
+  const slot = (CW - PAD_L - PAD_R) / span
+  const yMax = niceMax(Math.max(...rows.map(r => r.movies)))
+  const x = (yr: number) => PAD_L + (yr - first + 0.5) * slot
+  const y = (v: number) => CH - PAD_B - (v / yMax) * (CH - PAD_T - PAD_B)
+  const w = Math.max(1, slot - (slot > 4 ? 1 : 0))
+  const bars = rows.map(r => {
+    const top = y(r.movies)
+    return `<rect class="chart-bar" x="${(x(r.year) - w / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${(CH - PAD_B - top).toFixed(1)}" rx="1"><title>${r.year}: ${r.movies} movie${r.movies === 1 ? "" : "s"}</title></rect>`
+  }).join("")
+  return svgWrap("Movies per release year", axes(rows, yMax, x, y) + bars)
+}
+
+function growthChart(rows: YearRow[]) {
+  const first = rows[0].year, last = rows[rows.length - 1].year
+  const span = Math.max(1, last - first)
+  const yMax = niceMax(rows[rows.length - 1].cumulative)
+  const x = (yr: number) => PAD_L + ((yr - first) / span) * (CW - PAD_L - PAD_R)
+  const y = (v: number) => CH - PAD_B - (v / yMax) * (CH - PAD_T - PAD_B)
+  const pts = rows.map(r => `${x(r.year).toFixed(1)},${y(r.cumulative).toFixed(1)}`)
+  const base = (CH - PAD_B).toFixed(1)
+  const area = `<path class="chart-area" d="M${x(first).toFixed(1)},${base} L${pts.join(" L")} L${x(last).toFixed(1)},${base} Z"/>`
+  const line = `<polyline class="chart-line" points="${pts.join(" ")}"/>`
+  // invisible per-year hit targets carry the hover title
+  const hits = rows.map(r => `<circle class="chart-hit" cx="${x(r.year).toFixed(1)}" cy="${y(r.cumulative).toFixed(1)}" r="5"><title>${r.year}: ${r.cumulative.toLocaleString("en-US")} total (+${r.movies})</title></circle>`).join("")
+  return svgWrap("Cumulative movies by release year", axes(rows, yMax, x, y) + area + line + hits)
 }
 
 function counterTile({ id, label, icon }: { id: string; label: string; icon: string }) {

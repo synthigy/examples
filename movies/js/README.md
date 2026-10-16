@@ -54,11 +54,32 @@ ratings / 9.7k movies / 1.5k actors (progress counted live by the
 | `/` | the guide, then the landing page | `Demo.progress` / `watchProgress` |
 | `/movies` | paginated search; rate or edit and the row repaints | `Movie.watchList`, `Movie.list`, `Movie.count` |
 | `/movies/:xid` | detail; edit title, year, cast, genres | `Movie.watchDetail`, `Movie.detail`, `Movie.sync` |
+| ↳ Fields from the modeler | attributes added to Movie after codegen: shown and editable, appear live on deploy | `client.schema`, `client.get`/`sync` with a runtime selection |
+| ↳ History | who changed what, from what to what; Restore a change | `client.history.events`, `history.getAt` |
 | `/actors` | infinite-scroll grid | `MovieActor.list` |
 | `/dashboard` | live counters + destroy | `Dashboard.watchStats` |
+| footer: Let a crowd in | 15 s of simulated ratings across the first page (and the open movie) | `UserRating.stack` |
 
 Writes answer with an empty SSE response and the watch repaints, so there is
-no reload and no polling. Rate a film in one window and watch another follow.
+no reload and no polling. Rate a film in one window and watch another follow —
+or let the crowd in and watch every page move at once.
+
+History needs `audit/persist` on Movie, which is what model 0.5 adds over 0.4.
+Movies imported under 0.4 have no history until their first edit, and that
+first change cannot know the value it replaced.
+
+## SDK 0.2.2 workarounds
+
+Two live paths do not work through the SDK alone today; `serve.ts` and
+`lib/movie-model.ts` carry the workaround next to a comment:
+
+- **`watchQuery()` ignores `record/update`.** It re-runs only on `entity/*` and
+  `relation/*` events, so an attribute changed on its own (a title from the
+  console) never repaints `Movie.watchDetail()`. The detail stream watches the
+  record itself and repaints the card. `/movies` and `/actors` still have the gap.
+- **`watchSchema()` never yields.** Deploy events reach the SSE, but `listen()`
+  strips the SSE event name the multiplexer needs to recognise them. A deploy
+  is noticed by polling the deployed version instead (one small read every 3 s).
 
 ## Codegen
 
@@ -79,8 +100,11 @@ on the server when a template's hash changed.
 - `npm start` runs node in watch mode; run one instance.
 - Changing `PORT`/`BASE_URL` in `.synthigy/.env` means re-registering the
   client's redirect URI (exact match).
-- Omitted on purpose: optimistic UI, live schema-change events, a production
-  session store, `id_token` signature verification.
+- Omitted on purpose: optimistic UI, a production session store, `id_token`
+  signature verification.
+- Removing an attribute in the modeler and adding one with the same name later
+  fails to deploy on SQLite (`SCHEMA_CONFLICT: duplicate column name`): the
+  old column stays. Use a new name.
 
 ```
 serve.ts              routes, OAuth bounce, SSE streams
@@ -90,5 +114,8 @@ lib/seed.ts           deploy / seed / destroy, shared by scripts/ and the guide
 lib/demo-state.ts     the guide's phase machine
 lib/demo-jobs.ts      single-flight job registry
 lib/presence.ts       "N tabs live" pill + destroy broadcast
+lib/crowd.ts          the simulated crowd
+lib/movie-model.ts    Movie's live shape + deploy detection
+lib/movie-history.ts  audit events → "who changed what"
 public/guide-tour.js  the real-time tour steps
 ```

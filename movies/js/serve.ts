@@ -67,7 +67,10 @@ import {
 import { EXPORT_PATH, deployModel, destroyDataset, exportDatasetXid, readExport, runSeed, loadSeedPhases } from "./lib/seed.ts"
 import { demoState, invalidateDemoState, initExpectedCounts, type DemoPhase } from "./lib/demo-state.ts"
 import { startJob, onJobEvent } from "./lib/demo-jobs.ts"
-import { bindDemoBus } from "./lib/presence.ts"
+import { bindDemoBus, broadcast } from "./lib/presence.ts"
+import { startCrowd, onCrowd } from "./lib/crowd.ts"
+import { movieFields, extraFields, extraValues, coerce, onMovieModelChange, watchMovieModel } from "./lib/movie-model.ts"
+import { movieHistory, movieStateBefore } from "./lib/movie-history.ts"
 
 // Append one line to the in-page event console (#debug-log on /movies).
 // Each line is class-tagged so the CSS can color-code by event kind
@@ -95,7 +98,7 @@ function classifyEvent(type: string) {
 
 import { landingPage } from "./views/landing.ts"
 import { guidePage } from "./views/guide.ts"
-import { moviesPage, movieRow, searchMeta, moviesPagerInner, actorChip, ACTOR_PICKER_PAGE, movieDetailPage, movieDetailCard, dashboardPage } from "./views/movies.ts"
+import { moviesPage, movieRow, searchMeta, moviesPagerInner, actorChip, ACTOR_PICKER_PAGE, movieDetailPage, movieDetailCard, dashboardPage, yearCharts, extrasPanel, historyPanel, type DetailSide } from "./views/movies.ts"
 import { actorsPage, actorRow, actorDetailPage, actorDetailCard } from "./views/actors.ts"
 
 // Returns "stale-session" when the SDK error implies the cached
@@ -193,6 +196,37 @@ await initExpectedCounts()
 const as = (req: IncomingMessage) => {
   const sess = getSession(req)
   return sess?.user?.xid ? { actingAs: sess.user.xid } : {}
+}
+
+// Every open page hears the crowd's progress (the footer button's label) and
+// every model deploy (a toast naming what changed on Movie).
+onCrowd((s) => broadcast((res) => patchSignals(res, { crowd: s })))
+
+watchMovieModel()
+onMovieModelChange(({ added, removed, version }) => {
+  const parts = [
+    added.length ? `Movie gained ${added.map((n) => `<code>${esc(n)}</code>`).join(", ")}` : "",
+    removed.length ? `lost ${removed.map((n) => `<code>${esc(n)}</code>`).join(", ")}` : "",
+  ].filter(Boolean)
+  const what = parts.length ? ` ${parts.join(" and ")} — no restart, no codegen.` : ""
+  const html = `<div class="model-toast" role="status" data-init="setTimeout(() => el.remove(), 9000)">`
+    + `<strong>Model ${esc(version ?? "")} deployed.</strong>${what}</div>`
+  broadcast((res) => patchElements(res, { selector: "body", mode: "append", html }))
+})
+
+// The detail page's two panels outside the typed watchDetail() projection.
+// Each fails on its own: a model the schema read can't parse should not take
+// the history down with it, and vice versa.
+async function detailSide(xid: string): Promise<DetailSide> {
+  const [extras, history] = await Promise.all([
+    extraFields()
+      .then(async (fields) => extrasPanel(xid, fields, await extraValues(xid, fields)))
+      .catch((e) => { console.error(`[extras ${xid}]`, e?.message); return "" }),
+    movieHistory(xid)
+      .then((entries) => historyPanel(xid, entries))
+      .catch((e) => historyPanel(xid, [], e?.code === "HISTORY_UNAVAILABLE" ? "no audit store on this instance" : e?.message)),
+  ])
+  return { extras, history }
 }
 
 
@@ -333,12 +367,13 @@ route("GET", /^\/movies\/(?<xid>[A-Za-z0-9_-]+)$/, async (req, res, { xid }) => 
   // Movie.detail() uses get — sdk.search with { xid } filter doesn't work
   // (server "Character cannot be cast to Map$Entry" on that path).
   // Actor + genre lists ride along to populate the edit modal's pickers.
-  let movie = null, actors: MovieActorList[] = [], genres: MovieGenreList[] = []
+  let movie = null, actors: MovieActorList[] = [], genres: MovieGenreList[] = [], side: DetailSide = {}
   try {
-    ;[movie, actors, genres] = await Promise.all([
+    ;[movie, actors, genres, side] = await Promise.all([
       Movie.detail({ xid }, as(req)),
       MovieActor.list({ limit: ACTOR_PICKER_PAGE, offset: 0 }, as(req)),
       MovieGenre.list({ limit: 100 }, as(req)),
+      detailSide(xid),
     ])
   } catch (e) {
     console.error(`[/movies/${xid}] get failed:`, e.message, e.details || "")
@@ -349,7 +384,7 @@ route("GET", /^\/movies\/(?<xid>[A-Za-z0-9_-]+)$/, async (req, res, { xid }) => 
       `<h1>Movie fetch failed</h1><pre>${esc(e.message)}\n${esc(e.details || "")}</pre>`)
   }
   if (!movie) return send(res, 404, "text/html", "<h1>Not found</h1>")
-  send(res, 200, "text/html", movieDetailPage({ user: sess?.user, movie, actors, genres }))
+  send(res, 200, "text/html", movieDetailPage({ user: sess?.user, movie, actors, genres, side }))
 })
 
 route("GET", "/dashboard", async (req, res) => {
@@ -477,9 +512,70 @@ route("GET", /^\/stream\/movies\/(?<xid>[A-Za-z0-9_-]+)$/, async (req, res, { xi
   }
   if (!live.records.size) return res.end()
 
+  // The extras + history panels. watchDetail() only fires when its OWN
+  // projection changes — a write to an attribute added in the modeler is
+  // invisible to it — so a plain record watch on this movie drives them, and
+  // a deploy (a new attribute to show) does too. The audit store lands a
+  // moment after the write, hence the second, later read.
+  let side: DetailSide = {}
+  let alive = true
+  const timers = new Set<ReturnType<typeof setTimeout>>()
+  const refreshSide = async () => {
+    if (!alive) return
+    side = await detailSide(xid)
+    if (!alive) return
+    patchElements(res, { selector: "#movie-extras", html: side.extras ?? "", mode: "inner" })
+    patchElements(res, { selector: "#movie-history", html: side.history ?? "", mode: "inner" })
+  }
+  const scheduleSide = () => {
+    for (const ms of [300, 1500]) {
+      const t = setTimeout(() => { timers.delete(t); refreshSide().catch(() => {}) }, ms)
+      timers.add(t)
+    }
+  }
+  refreshSide().catch(() => {})
+
+  // Workaround, @synthigy/sdk 0.2.2: watchQuery() (under watchDetail) only
+  // re-runs on `entity/*` and `relation/*` events, but the engine names an
+  // attribute write `record/update` — so a title changed on its own (Restore,
+  // the console) never repaints the card; only writes that also re-link
+  // actors/genres do. The record watch below sees `record/update`, so it
+  // repaints the card itself.
+  let cardTimer: ReturnType<typeof setTimeout> | null = null
+  const scheduleCard = () => {
+    if (cardTimer) return
+    cardTimer = setTimeout(async () => {
+      cardTimer = null
+      if (!alive) return
+      try {
+        const movie = await Movie.detail({ xid }, as(req))
+        if (alive && movie) patchElements(res, { selector: `#movie-${xid}`, html: movieDetailCard(movie, side), mode: "outer" })
+      } catch (e) { console.error(`[stream/movies/${xid}] card refresh failed:`, e.message) }
+    }, 120)
+  }
+
+  // Ratings link to the movie (relation events) — the crowd makes plenty.
+  // Only the movie's own attributes changing is a reason to re-read.
+  const raw = client().watch({ records: [xid] })
+  ;(async () => {
+    for await (const ev of raw.events) {
+      if (ev.type !== "record/update") continue
+      scheduleCard()
+      scheduleSide()
+    }
+  })().catch(() => {})
+  const offModel = onMovieModelChange(() => scheduleSide())
+  req.on("close", () => {
+    alive = false
+    raw.close()
+    offModel()
+    for (const t of timers) clearTimeout(t)
+    if (cardTimer) clearTimeout(cardTimer)
+  })
+
   await pipeWatch(req, res, live, (ev) => {
     if (ev.type === "query/changed") {
-      patchElements(res, { selector: `#movie-${xid}`, html: movieDetailCard(ev.record as MovieDetail), mode: "outer" })
+      patchElements(res, { selector: `#movie-${xid}`, html: movieDetailCard(ev.record as MovieDetail, side), mode: "outer" })
     }
   })
 })
@@ -499,16 +595,30 @@ route("GET", "/stream/dashboard", async (req, res) => {
     patchElements(res, { selector: "#counter-actors-val",  html: esc(String(s.total_actors  ?? "…")) })
   }).catch(() => {})
 
-  await pipeWatch(req, res, live, (ev) => {
-    if (ev.type === "result/changed") {
-      const s = (ev as any).after[0]
-      if (!s) return
-      patchElements(res, { selector: "#counter-movies-val",  html: esc(String(s.total_movies  ?? 0)) })
-      patchElements(res, { selector: "#counter-ratings-val", html: esc(String(s.total_ratings ?? 0)) })
-      patchElements(res, { selector: "#counter-avg-val",     html: esc(s.avg_rating != null ? `${s.avg_rating.toFixed(2)} ★` : "—") })
-      patchElements(res, { selector: "#counter-actors-val",  html: esc(String(s.total_actors  ?? 0)) })
-    }
-  })
+  // Second watch on the same SSE response: the per-year series only cares
+  // about `movie`, so rating writes never re-render the charts.
+  const years = Dashboard.watchByYear(as(req))
+  years.ready().then(() => {
+    patchElements(res, { selector: "#year-charts", html: yearCharts(years.value ?? []), mode: "outer" })
+  }).catch(() => {})
+
+  await Promise.all([
+    pipeWatch(req, res, live, (ev) => {
+      if (ev.type === "result/changed") {
+        const s = (ev as any).after[0]
+        if (!s) return
+        patchElements(res, { selector: "#counter-movies-val",  html: esc(String(s.total_movies  ?? 0)) })
+        patchElements(res, { selector: "#counter-ratings-val", html: esc(String(s.total_ratings ?? 0)) })
+        patchElements(res, { selector: "#counter-avg-val",     html: esc(s.avg_rating != null ? `${s.avg_rating.toFixed(2)} ★` : "—") })
+        patchElements(res, { selector: "#counter-actors-val",  html: esc(String(s.total_actors  ?? 0)) })
+      }
+    }, { keepOpen: true }),
+    pipeWatch(req, res, years, (ev) => {
+      if (ev.type === "result/changed")
+        patchElements(res, { selector: "#year-charts", html: yearCharts((ev as any).after ?? []), mode: "outer" })
+    }, { keepOpen: true }),
+  ])
+  res.end()
 })
 
 // Infinite-scroll load-more (pure pagination, no watch). Same technique as the
@@ -770,6 +880,71 @@ route("POST", /^\/movies\/(?<xid>[A-Za-z0-9_-]+)\/rate$/, async (req, res, { xid
   } catch (e) {
     console.error(`[/rate] failed:`, e.message, e.details || "")
     sseRun(res, `alert(${JSON.stringify("Rating failed: " + e.message)})`)
+  }
+})
+
+// The footer's "Let a crowd in". No login, like the guide's buttons: it writes
+// as the BFF's own client (local demo policy). Answers at once — progress
+// reaches every tab as the `crowd` signal.
+route("POST", "/demo/crowd", async (req, res) => {
+  if ((await demoState()).phase !== "ready") return sseRun(res, "alert('Import the data first.')")
+  const url = new URL(req.url ?? "/", BASE_URL)
+  const focus = (url.searchParams.get("from") ?? "").match(/^\/movies\/([A-Za-z0-9_-]+)$/)?.[1] ?? null
+  try {
+    await startCrowd(focus)
+    sseHeaders(res); res.end()
+  } catch (e) {
+    console.error(`[/demo/crowd] failed:`, e.message)
+    sseRun(res, `alert(${JSON.stringify("Crowd failed: " + e.message)})`)
+  }
+})
+
+// One attribute the generated client does not know — added in the modeler.
+// The name is checked against the LIVE schema, the value coerced to its type,
+// and written with a plain sync(); the record watch repaints every open tab.
+route("POST", /^\/movies\/(?<xid>[A-Za-z0-9_-]+)\/field$/, async (req, res, { xid }) => {
+  const sess = getSession(req)
+  if (!sess) return sseRun(res, `window.location='/login?returnTo=${encodeURIComponent("/movies/" + xid)}'`)
+  const name = new URL(req.url ?? "/", BASE_URL).searchParams.get("name") ?? ""
+  const field = (await extraFields()).find((f) => f.name === name)
+  if (!field) return sseRun(res, `alert(${JSON.stringify(`Movie has no attribute "${name}" (any more?).`)})`)
+  const body = await readJsonOrForm(req)
+  try {
+    const value = coerce(field.type, body?.xf?.[name])
+    await client().sync("Movie", { xid, [name]: value }, { actingAs: sess.user.xid })
+    sseHeaders(res); res.end()
+  } catch (e) {
+    console.error(`[POST /movies/${xid}/field ${name}] failed:`, e.message, e.details || "")
+    if (classifySdkError(e) === "stale-session") return sseRun(res, "window.location='/login?reason=session-expired'")
+    sseRun(res, `alert(${JSON.stringify("Save failed: " + e.message)})`)
+  }
+})
+
+// History → "Restore": put the fields one recorded change touched back the
+// way they were just before it (history.getAt). Only those fields — an older
+// restore must not roll back unrelated later edits — and only ones that still
+// exist on Movie. A field missing from the snapshot was empty then. The
+// restore is itself a change and joins the history.
+route("POST", /^\/movies\/(?<xid>[A-Za-z0-9_-]+)\/restore$/, async (req, res, { xid }) => {
+  const sess = getSession(req)
+  if (!sess) return sseRun(res, `window.location='/login?returnTo=${encodeURIComponent("/movies/" + xid)}'`)
+  const at = new URL(req.url ?? "/", BASE_URL).searchParams.get("at") ?? ""
+  if (!at || Number.isNaN(Date.parse(at))) return sseRun(res, "alert('Nothing to restore to.')")
+  try {
+    const entry = (await movieHistory(xid)).find((e) => e.ts === at)
+    if (!entry?.restorable) return sseRun(res, "alert('History has no earlier state for this change.')")
+    const before = (await movieStateBefore(xid, at)) ?? {}
+    const current = new Set((await movieFields()).map((f) => f.name))
+    const data = Object.fromEntries(entry.fields
+      .filter((f) => current.has(f.name))
+      .map((f) => [f.name, f.name in before ? before[f.name] : null]))
+    if (!Object.keys(data).length) return sseRun(res, "alert('Those fields no longer exist on Movie.')")
+    await client().sync("Movie", { xid, ...data }, { actingAs: sess.user.xid })
+    sseHeaders(res); res.end()
+  } catch (e) {
+    console.error(`[POST /movies/${xid}/restore] failed:`, e.message, e.details || "")
+    if (classifySdkError(e) === "stale-session") return sseRun(res, "window.location='/login?reason=session-expired'")
+    sseRun(res, `alert(${JSON.stringify("Restore failed: " + e.message)})`)
   }
 })
 
