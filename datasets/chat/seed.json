@@ -1,23 +1,26 @@
 {
-  "groups": [
-    { "name": "Croatia", "description": "Everyone in the Zagreb office" },
-    { "name": "Family",  "description": "Kitchen-table talk" },
-    { "name": "Friends", "description": "Weekend plans" }
-  ],
   "users": [
-    { "name": "alice",   "groups": ["Croatia", "Family"] },
-    { "name": "bob",     "groups": ["Croatia", "Friends"] },
-    { "name": "charlie", "groups": ["Family"] },
-    { "name": "diana",   "groups": ["Croatia", "Family", "Friends"] }
+    { "name": "alice" },
+    { "name": "bob" },
+    { "name": "charlie" },
+    { "name": "diana" }
+  ],
+  "rooms": [
+    { "name": "Croatia", "description": "Everyone in the Zagreb office",
+      "administrators": ["alice"], "members": ["alice", "bob", "diana"] },
+    { "name": "Family",  "description": "Kitchen-table talk",
+      "administrators": ["charlie"], "members": ["alice", "charlie", "diana"] },
+    { "name": "Friends", "description": "Weekend plans",
+      "administrators": ["bob"], "members": ["bob", "diana"] }
   ],
   "messages": [
-    { "author": "alice",   "group": "Croatia", "content": "Dobar dan — the new build is on staging." },
-    { "author": "bob",     "group": "Croatia", "content": "Seen it. The login bounce is fixed." },
-    { "author": "diana",   "group": "Croatia", "content": "I will run the smoke tests after lunch." },
-    { "author": "alice",   "group": "Family",  "content": "Dinner at seven?" },
-    { "author": "charlie", "group": "Family",  "content": "Make it eight, I am still at the office." },
-    { "author": "diana",   "group": "Family",  "content": "Eight works." },
-    { "author": "bob",     "group": "Friends", "content": "Climbing on Saturday if the weather holds." },
-    { "author": "diana",   "group": "Friends", "content": "In. I will bring the rope." }
+    { "author": "alice",   "room": "Croatia", "content": "Dobar dan — the new build is on staging." },
+    { "author": "bob",     "room": "Croatia", "content": "Seen it. The login bounce is fixed." },
+    { "author": "diana",   "room": "Croatia", "content": "I will run the smoke tests after lunch." },
+    { "author": "alice",   "room": "Family",  "content": "Dinner at seven?" },
+    { "author": "charlie", "room": "Family",  "content": "Make it eight, I am still at the office." },
+    { "author": "diana",   "room": "Family",  "content": "Eight works." },
+    { "author": "bob",     "room": "Friends", "content": "Climbing on Saturday if the weather holds." },
+    { "author": "diana",   "room": "Friends", "content": "In. I will bring the rope." }
   ]
 }

@@ -27,9 +27,14 @@ if [ -z "$PORTAL_PORT" ]; then
 fi
 RPC="http://127.0.0.1:$PORTAL_PORT/rpc"
 
+# python3 where it works, else python: on Windows `python3` is often the
+# Microsoft Store alias, which exists on PATH but only prints an install hint.
+PY=$(for p in python3 python; do "$p" -c '' >/dev/null 2>&1 && { echo "$p"; break; }; done)
+[ -n "$PY" ] || { echo "needs Python 3 (python3 or python on PATH)" >&2; exit 1; }
+
 info=$(curl -sf -X POST "$RPC/tools.info")
 
-merged=$(python3 - "$info" "$@" <<'EOF'
+merged=$("$PY" - "$info" "$@" <<'EOF'
 import json, sys
 info = json.loads(sys.argv[1])
 origins = sys.argv[2:]

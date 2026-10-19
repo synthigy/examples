@@ -19,7 +19,9 @@
 
          gen {:doc "Regenerate gen/ from ../xsql (needs a running backend)"
               :task (exec 'synthigy.gen/generate)
-              :exec-args {:dir "../xsql" :out "gen" :ns-prefix "chat.ops"}}
+              ;; :pull — always take the schema from the server we're pointed
+              ;; at, so a leftover schema.json (e.g. after --wipe) can't go stale
+              :exec-args {:dir "../xsql" :out "gen" :ns-prefix "chat.ops" :pull true}}
 
          gen-check {:doc "CI gate: verify gen/ matches ../xsql (needs a running backend)"
                     :task (exec 'synthigy.gen/check)

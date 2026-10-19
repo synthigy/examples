@@ -1,23 +1,51 @@
 @workspace "Chat Rooms"
 
+@search rooms
+@description "Rooms the acting user may read, with members, administrators and
+a member count. Which rooms come back is the room's read guard, not this query."
+@namespace room
+@watch
+chat_room (order by name asc)
+  xid
+  name
+  description
+  _count
+    members:members
+  ->members (order by name asc)
+    xid
+    name
+  ->administrators (order by name asc)
+    xid
+    name
+
+@sql-template activity
+@description "Per-room activity as the acting user sees it. Every user runs
+this same SQL; the guards are injected into it, so each gets their own numbers."
+@namespace room
+@watch chat_message, chat_room
+@returns room:string, messages:int, authors:int, last_post:string?
+SELECT {chat_message->chat_room.name} AS room,
+       count(*) AS messages,
+       count(DISTINCT {chat_message.author}) AS authors,
+       max({chat_message.published_on}) AS last_post
+FROM {chat_message}
+GROUP BY 1
+ORDER BY 1
+
 @search list
-@description "All chat messages the acting user can see (RLS-scoped via acting_as)."
+@description "Messages of the given rooms the acting user may read, oldest
+first. `-chat_room` keeps only messages whose room is in the list."
 @namespace message
 @watch
-chato_message
+chat_message (order by published_on asc)
   xid
   content
   published_on
   ->author
     xid
     name
-
-@search memberships
-@description "Message-to-group links for the given groups, read from the User
-Group side (the m2m link is not projectable from the message side)."
-@namespace group
-user_group (xid in (?xids:string[]))
-  ->messages
+  -chat_room (xid in (?rooms:string[]))
     xid
+    name
 
-@batch bootstrap: list memberships
+@batch overview: rooms activity

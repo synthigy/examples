@@ -3,25 +3,92 @@
   "steps": [
     {
       "target": "cast",
-      "title": "One query, two views",
-      "body": "Pick Alice, then Bob. Same query, same client, one token — acting_as per request decides which rooms exist for you."
+      "title": "One client, four people",
+      "body": "This app holds ONE confidential client. Every request names the person it acts for (acting_as), and the engine answers as that person. Pick Alice, then Charlie, and watch the whole page change."
+    },
+    {
+      "target": "whoami",
+      "title": "Who the engine thinks you are",
+      "body": "whoami over acting_as: the user the engine resolved for this request and the roles it carries. Not a superuser, not the app's client — so every guard applies."
+    },
+    {
+      "target": "rooms",
+      "title": "Rooms are a guard, not a query",
+      "body": "Everyone runs the same rooms query. Alice gets Croatia and Family, Charlie only Family. The chip says which read guard let you in: administrator, member, or a message you wrote there."
+    },
+    {
+      "target": "topbar-tour",
+      "title": "Two more people",
+      "body": "Notifications next, and they need an audience. Open Bob's window: he is in this room but looking at another one of his.",
+      "action": {
+        "label": "Open Bob's window",
+        "do": "open-peer"
+      }
+    },
+    {
+      "target": "topbar-tour",
+      "title": "And someone outside the room",
+      "body": "Now Charlie's window. No guard lets him read this room. Keep both windows where you can see them.",
+      "action": {
+        "label": "Open Charlie's window",
+        "do": "open-outsider"
+      }
     },
     {
       "target": "compose",
-      "title": "Send as Alice",
-      "body": "Send a message as Alice. Open a tab as Bob and one as Carol: only the room members see it."
+      "title": "Send one message",
+      "body": "Type something and press Enter. Bob gets a notification, an unread badge on the room and a count in his tab title. Charlie gets nothing at all.",
+      "wait": {
+        "watch": "#messages"
+      }
+    },
+    {
+      "target": "wakes",
+      "title": "Notifications that cannot leak",
+      "html": "Compare the counter in each window: Bob's tab woke, Charlie's didn't. Each tab subscribes to the <em>records</em> of the rooms it may read, so a message elsewhere raises no event for it. And an event carries no data: the tab re-reads as its own user, so even a woken tab can only show a row the guards let through."
+    },
+    {
+      "target": "members",
+      "title": "Try a change you are not allowed",
+      "body": "In Bob's window, open #Croatia and add Charlie. The button is not hidden: the engine refuses with ROW_FORBIDDEN, because only a room's administrators may change its links. Here, as Alice, Croatia's administrator, it works — and the room appears in Charlie's window, live. Administrators can also delete anyone's message in their room."
+    },
+    {
+      "target": "activity",
+      "title": "Same SQL, different numbers",
+      "body": "This panel is one SQL template for everyone. The engine injects the room and message guards into it, so each user counts only what they may read. Switch user and compare; post a message and the numbers move."
+    },
+    {
+      "target": "open-room",
+      "title": "The model says unique",
+      "body": "Press + beside Rooms and open one called Croatia: the engine answers UNIQUE_VIOLATION, category conflict. Room names are unique in the model. Any other name opens a room you administer."
     },
     {
       "target": "messages",
-      "title": "Filtered history, not app code",
-      "body": "Click the clock on any message: its edit timeline is a filter on one attribute, served by the audit provider — nothing here is application code.",
+      "title": "Edits and deletes are history",
+      "body": "Click the clock on a message: its edit timeline is a filter on one attribute of the audit history. Delete one of yours and it reappears below, crossed out — recovered from /history, not from this app.",
       "id": "history"
     },
     {
       "tool": "model",
       "anchor": "entity",
-      "title": "The guard, in the model",
-      "body": "The Message entity carries the RLS guard that just did all of this: only an author may edit, only members may read. It ships with the model, not with this app."
+      "title": "The guards live in the model",
+      "body": "Chat Room and Chat Message carry every rule you just met: members read, administrators change membership and moderate, authors edit. They ship with the model and apply to any client, this one included."
+    },
+    {
+      "tool": "console",
+      "only": [
+        "workspaces",
+        "run",
+        "results"
+      ]
     }
-  ]
+  ],
+  "tools": {
+    "console": {
+      "workspaces": {
+        "title": "The data layer is this file",
+        "html": "This tab is <code>chat.xsql</code>: rooms, messages and the activity SQL. Codegen turned it into the <code>chat.ops.room</code> and <code>chat.ops.message</code> functions the app calls, live versions included. Run one and you get exactly what the page gets."
+      }
+    }
+  }
 }
