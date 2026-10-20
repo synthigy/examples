@@ -1,13 +1,55 @@
 # shared
 
-Browser scripts every demo serves from this directory, one copy for all of
-them: no build step, no bundler, no dependency.
+Browser scripts and styles every demo serves from this directory, one copy
+for all of them: no build step, no bundler, no dependency.
 
 | File | What it is |
 |---|---|
+| `theme.css` | The look every demo shares: Tyrell tokens seeded yellow, DM Sans + JetBrains Mono, topbar / page / footer chrome, section titles, surfaces, avatars, pills, toasts |
+| `chrome.js` | Reveals the page once Tyrell's components are defined (no flash of bare tags) and docks the tools rail into the footer's `#footer-tools` |
 | `tools-rail.js` | Bottom-left dock that opens the `@synthigy/tooling` components (modeler, data console, log cockpit) against the demo's engine; each chip has a **tour** half |
 | `scenario.js` | Runs tour scenarios: a demo's `<domain>/tour.json` and the built-in model / console / logs tours |
 | `tour.js` | The engine under it, on driver.js (named steps, resume stack, page gates, lanes) |
+
+## theme.css and chrome.js
+
+Every demo pins the same versions: **Tyrell `1.0.0-TC55`** and **Datastar
+`v1.0.2`**. The page anatomy is movies', which the theme was lifted from:
+
+```html
+<html lang="en" class="dark" data-theme="dark">
+<head>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tyrell-components@1.0.0-TC55/css/tyrell.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tyrell-components@1.0.0-TC55/css/tyrell-theme.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/tyrell-components@1.0.0-TC55/dist/tyrell.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.2/bundles/datastar.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } }</script>
+  <link rel="stylesheet" href="/theme.css">
+  <!-- the demo's own styles, only what is its own -->
+</head>
+<body class="ty-canvas">
+  <header class="topbar flex items-center px-6 py-3 gap-6 shrink-0">
+    <!-- a.back-link to EXAMPLES_URL · a.brand (icon + lowercase name) · nav of a.nav-link · .pill status · actions · "Take the tour" -->
+  </header>
+  <div class="page-scroll"><!-- or .page-fill for a full-height app --></div>
+  <footer class="px-6 py-3 text-[0.8em] shrink-0 flex flex-wrap items-center gap-3 justify-between">
+    <div class="flex flex-wrap items-center gap-2"><div id="footer-tools"></div><!-- data actions --></div>
+    <span class="footer-credit">… · components by tyrell, reactivity by datastar</span>
+  </footer>
+  <script src="/tools-rail.js"></script>
+  <script src="/chrome.js"></script>
+</body>
+```
+
+- **Tailwind's preflight stays off**: its reset fights Tyrell's components.
+  Layout is Tailwind utilities; colour, borders and type come from here.
+- **`a.nav-link[aria-current="page"]`** marks where you are, in the topbar
+  or in a sidebar.
+- **Fields are Tyrell's** (`ty-input`, `ty-select`, `ty-textarea`), never
+  bare `<input>`/`<select>`: they carry the theme. `ty-select` reports its
+  pick in `evt.detail.value`.
+- Serve `theme.css` as `text/css`, `chrome.js` like the other scripts.
 
 ## tools-rail.js
 
@@ -98,8 +140,9 @@ tour" to the page the first step lives on.
 
 ## Wiring a demo
 
-1. Serve `/tools-rail.js`, `/scenario.js` and `/tour.js` from here
-   (`application/javascript`, no-store), and `/tour.json` from `<domain>/`.
+1. Serve `/tools-rail.js`, `/scenario.js`, `/tour.js` and `/chrome.js` from
+   here (`application/javascript`, no-store), `/theme.css` (`text/css`), and
+   `/tour.json` from `<domain>/`.
 2. Add the config + script tags above before `</body>`.
 3. Put `data-tour` attributes in the server-side render, and a "Take the
    tour" link to `?tour=1`.

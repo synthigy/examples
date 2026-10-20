@@ -1,0 +1,158 @@
+/* examples/shared/theme.css — the look every demo shares, lifted from
+   movies/js/public/style.css: Tyrell tokens seeded yellow, DM Sans + JetBrains
+   Mono, the topbar / page / footer chrome and a few pieces every demo has
+   (section titles, surfaces, avatars, pills, toasts).
+
+   Load it after tyrell.css + tyrell-theme.css, with Tailwind's preflight off
+   (tailwind.config = { corePlugins: { preflight: false } }) so its reset can't
+   fight Tyrell. Pair it with chrome.js. A demo's own stylesheet comes after
+   and keeps only what is its own. */
+
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+/* ── tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --ty-primary-hue: 95;      /* yellow — the palette is seeded from this */
+  --ty-primary-chroma: 0.15;
+  --ty-success-hue: 150;     /* mint, not Tyrell's olive next to the yellow */
+  --ty-success-chroma: 0.16;
+  --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+/* Yellow needs lifting or it reads olive; black text on the solid fill. */
+html[data-theme="dark"] {
+  --ty-scrollbar-thumb: #5b5b5b38;
+  --ty-solid-primary-fg: black;
+  --ty-solid-primary: oklch(0.88 0.17 95);
+  --ty-solid-primary-hover: oklch(0.83 0.18 95);
+  --ty-solid-primary-active: oklch(0.78 0.18 95);
+  --ty-color-primary: oklch(0.86 0.15 95);
+}
+
+/* ── base ───────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--ty-surface-canvas);
+  color: var(--ty-text);
+  font: 14px/1.55 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  transition: opacity 0.12s ease;
+}
+html:not(.ty-ready) body { opacity: 0; }   /* chrome.js reveals once ty-* upgrade */
+h1, h2, h3 { display: flex; align-items: center; gap: 10px; margin: 0; }
+p { margin: 0; }
+a { color: var(--ty-color-primary); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+code, .mono { font-family: var(--font-mono); }
+code {
+  background: var(--ty-surface-elevated); padding: 2px 6px; border-radius: 4px;
+  font: 500 0.88em/1 var(--font-mono); color: var(--ty-color-primary);
+}
+/* server-rendered icons hold their size before ty-icon upgrades */
+ty-icon:not(:defined) { display: inline-flex; width: 1em; height: 1em; }
+ty-icon:not(:defined) svg { width: 100%; height: 100%; }
+ty-tag { width: fit-content; }
+
+/* ── chrome: topbar · page · footer ─────────────────────────────────── */
+.topbar { background: var(--ty-surface-content); border-bottom: 1px solid var(--ty-border); }
+.brand { color: var(--ty-text); }
+.brand:hover { text-decoration: none; }
+.brand ty-icon { color: var(--ty-color-primary); }
+.back-link { color: var(--ty-text-faint); font: 0.8rem var(--font-mono); }
+.back-link:hover { color: var(--ty-text-soft); text-decoration: none; }
+.nav-link { color: var(--ty-text-faint); transition: background 0.15s, color 0.15s; }
+.nav-link:hover { color: var(--ty-text); background: var(--ty-surface-elevated); text-decoration: none; }
+.nav-link[aria-current="page"] { color: var(--ty-color-primary); background: var(--ty-bg-primary-soft); font-weight: 600; }
+/* header/footer stay put; the page scrolls, or a region inside it does */
+.page-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.page-fill { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; }
+footer { border-top: 1px solid var(--ty-border); color: var(--ty-text-faint); }
+.footer-credit { color: var(--ty-text-faint); }
+/* tools-rail's dock, re-parented into the footer by chrome.js */
+#footer-tools { min-height: 32px; }
+#footer-tools .syn-tools-dock {
+  position: static !important; bottom: auto !important; left: auto !important; right: auto !important;
+  flex-direction: row !important; align-items: center !important; gap: 8px; z-index: auto !important;
+}
+#footer-tools .syn-tools-hint { display: none; }
+
+/* ── surfaces ───────────────────────────────────────────────────────── */
+.surface { background: var(--ty-surface-content); border: 1px solid var(--ty-border); }
+.surface-raised { background: var(--ty-surface-elevated); border: 1px solid var(--ty-border-soft); }
+.divider-r { border-right: 1px solid var(--ty-border); }
+.divider-l { border-left: 1px solid var(--ty-border); }
+.divider-t { border-top: 1px solid var(--ty-border-soft); }
+.empty-panel {
+  background: var(--ty-surface-content); border: 1px dashed var(--ty-border);
+  color: var(--ty-text-faint); font-style: italic;
+}
+
+/* ── text ───────────────────────────────────────────────────────────── */
+.section-title {
+  font: 600 0.7rem/1.4 var(--font-mono); color: var(--ty-text-faint);
+  text-transform: uppercase; letter-spacing: 0.14em;
+}
+.section-count {
+  font: 0.72rem/1 var(--font-mono); color: var(--ty-text-soft);
+  background: var(--ty-surface-elevated); border: 1px solid var(--ty-border);
+  border-radius: 999px; padding: 2px 7px;
+}
+.hint { color: var(--ty-text-soft); font-size: 0.86em; line-height: 1.55; }
+.faint { color: var(--ty-text-faint); }
+.soft { color: var(--ty-text-soft); }
+
+/* ── pills (topbar status, like movies' presence) ───────────────────── */
+.pill {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px;
+  border: 1px solid var(--ty-border); background: var(--ty-surface-elevated); border-radius: 999px;
+  font: 500 10.5px/1 var(--font-mono); letter-spacing: 0.04em; color: var(--ty-text-soft);
+}
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ty-color-success); box-shadow: 0 0 6px var(--ty-color-success);
+}
+
+/* ── avatars (round initial chips, flavored) ────────────────────────── */
+.avatar {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  border-radius: 50%; font-family: var(--font-body); font-weight: 700;
+  box-shadow: 0 1px 3px -1px rgba(0, 0, 0, 0.5);
+}
+.avatar.sm { width: 22px; height: 22px; font-size: 10px; }
+.avatar.md { width: 28px; height: 28px; font-size: 12px; }
+
+/* ── the engine's answer to a write, and notifications ──────────────── */
+.toast-stack {
+  position: fixed; right: 20px; z-index: 60; display: flex; flex-direction: column; gap: 10px;
+  width: 360px; max-width: calc(100vw - 40px);
+}
+.toast-stack.top { top: 72px; }
+.toast-stack.bottom { bottom: 72px; }
+.toast {
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
+  background: var(--ty-surface-floating); border: 1px solid var(--ty-border);
+  border-left: 3px solid var(--ty-color-primary); border-radius: 10px;
+  box-shadow: 0 20px 50px -14px rgba(0, 0, 0, 0.6);
+  font-size: 0.86rem; animation: toast-in 0.22s ease-out;
+}
+.toast.ok { border-left-color: var(--ty-color-success); }
+.toast.err { border-left-color: var(--ty-color-danger); }
+.toast-code { font: 500 0.74rem/1.4 var(--font-mono); color: var(--ty-color-danger); margin-top: 3px; }
+.toast-close { background: none; border: 0; cursor: pointer; padding: 0 2px; color: var(--ty-text-faint); }
+.toast-close:hover { color: var(--ty-text); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ── tour: the spotlit element, and keep the tools live under driver.js ─ */
+.driver-active-element { border-radius: 10px; outline: 2px solid var(--ty-color-primary); outline-offset: 3px; }
+.driver-active synthigy-data-modeling,
+.driver-active synthigy-data-console,
+.driver-active synthigy-log-cockpit { pointer-events: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}

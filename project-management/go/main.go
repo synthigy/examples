@@ -112,12 +112,16 @@ func domainFile(parts ...string) string {
 }
 
 // handleShared serves one file from examples/shared/ (tools-rail.js,
-// scenario.js, tour.js). Every demo serves its own copy of the same source
-// until the try-container hub serves it once at /_shared/*.
+// scenario.js, tour.js, theme.css, chrome.js). Every demo serves its own copy
+// of the same source until the try-container hub serves it once at /_shared/*.
 func handleShared(name string) http.HandlerFunc {
 	path := filepath.Join(sharedDir(), name)
+	ctype := "application/javascript; charset=utf-8"
+	if strings.HasSuffix(name, ".css") {
+		ctype = "text/css; charset=utf-8"
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		w.Header().Set("Content-Type", ctype)
 		w.Header().Set("Cache-Control", "no-store")
 		http.ServeFile(w, r, path)
 	}
@@ -258,6 +262,8 @@ func main() {
 	mux.HandleFunc("/tools-rail.js", handleShared("tools-rail.js"))
 	mux.HandleFunc("/scenario.js", handleShared("scenario.js"))
 	mux.HandleFunc("/tour.js", handleShared("tour.js"))
+	mux.HandleFunc("/theme.css", handleShared("theme.css"))
+	mux.HandleFunc("/chrome.js", handleShared("chrome.js"))
 	mux.HandleFunc("/tour.json", handleTourJSON)
 	mux.Handle("/vendor/tooling/", http.StripPrefix("/vendor/tooling/",
 		http.FileServer(http.Dir(filepath.Join(sharedDir(), "vendor", "tooling")))))
