@@ -51,7 +51,7 @@ all ports of that domain (same convention as `<domain>/xsql/`):
 
 ```json
 {
-  "name": "rls-demo",
+  "name": "project-management",
   "steps": [
     { "target": "panels", "title": "Same query, four answers", "body": "…" },
     { "target": "toggle", "title": "…", "body": "…", "wait": true },
@@ -112,7 +112,7 @@ tour" to the page the first step lives on.
 ```
 
 Demos serve `shared/vendor/tooling/` when it exists and the dock says "locally
-built". rls-demo and chat check per request; movies and music at start, so
+built". project-management and chat check per request; movies and music at start, so
 restart those.
 
 The CDN version is `TOOLING_VERSION` at the top of `tools-rail.js`.

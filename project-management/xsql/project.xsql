@@ -1,0 +1,59 @@
+@workspace "Project Management"
+
+@search projects
+@description "Projects the acting user may read, with everyone who holds a
+role in them. Which projects come back is the project's read guard, not this
+query: owner, managers, members and viewers each have one."
+@namespace project
+@watch
+project (order by name asc)
+  xid
+  name
+  description
+  ->project_owner
+    xid
+    name
+  ->managers (order by name asc)
+    xid
+    name
+  ->members (order by name asc)
+    xid
+    name
+  ->viewers (order by name asc)
+    xid
+    name
+
+@search tasks
+@description "Tasks the acting user may read. `->project` is a left pull: a
+task you may read through its assignee comes back even when its project's
+guard hides the project, with the project left empty."
+@namespace project
+@watch
+project_task (order by title asc)
+  xid
+  title
+  status
+  priority
+  due_date
+  ->assignee
+    xid
+    name
+  ->project
+    xid
+    name
+
+@sql-template workload
+@description "Open and finished tasks per person, as the acting user sees
+them. Everyone runs this same SQL; the guards are injected into it, so each
+gets their own numbers."
+@namespace project
+@watch project_task, project
+@returns person:string?, open:int, done:int
+SELECT {project_task->assignee.name} AS person,
+       count(*) FILTER (WHERE {project_task.status} <> 'Done') AS open,
+       count(*) FILTER (WHERE {project_task.status} = 'Done') AS done
+FROM {project_task}
+GROUP BY 1
+ORDER BY 1
+
+@batch overview: projects tasks workload

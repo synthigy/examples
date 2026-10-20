@@ -12,7 +12,7 @@ guards in the model; this app only asks.
 
 ## What only this example shows
 
-The other examples cover read guards (rls-demo), history and live queries
+The other examples cover roles on projects (project-management), history and live queries
 (movies, music). Chat is about **people and what they may change**, and about
 **notifications that respect the guards**:
 

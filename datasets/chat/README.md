@@ -1,7 +1,7 @@
 # Synthigy Chat — dataset export
 
 `synthigy-chat@0.1.3.json` — transit-serialized dataset version (same format as
-the rls-demo datasets): `{:euuid :name :xid :dataset :model}`.
+the project-management datasets): `{:euuid :name :xid :dataset :model}`.
 
 ## 0.1.3: rooms of its own
 

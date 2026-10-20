@@ -3,7 +3,7 @@
 The smallest useful Synthigy client: one query, then the same query live.
 Roughly 70 lines, no web framework, no UI. Read this one first if you want to
 see the shape of the SDK before reading the [access-control
-demo](../../rls-demo/go/), which is a full application.
+demo](../../project-management/go/), which is a full application.
 
 ## Prerequisites
 

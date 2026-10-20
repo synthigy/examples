@@ -1,4 +1,4 @@
-module github.com/synthigy/rls-demo-bff
+module github.com/synthigy/project-management-bff
 
 go 1.26
 
