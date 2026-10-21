@@ -87,7 +87,7 @@ check_go  movies/go      "movies/go"
 check_php movies/php     "movies/php"
 check_py  music/py       "music/py"
 check_clj chat/clj       "chat/clj"
-check_go  rls-demo/go    "rls-demo/go"
+check_go  project-management/go "project-management/go"
 echo
 printf '%d ok, %d failed, %d skipped\n' "$pass" "$fail" "$skip"
 [ "$fail" -eq 0 ]

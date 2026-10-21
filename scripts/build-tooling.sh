@@ -48,6 +48,6 @@ echo
 echo "built from $(git -C "$WC" rev-parse --short HEAD 2>/dev/null || echo 'working tree')"
 du -h "$DEST"/*
 echo
-echo "rls-demo (go) and chat (clj) check per request — reload the page."
+echo "project-management (go) and chat (clj) check per request — reload the page."
 echo "movies (js) and music (py) check at import — restart those two."
 echo "Revert with: --clean"

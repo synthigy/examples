@@ -1,0 +1,44 @@
+{
+  "users": [
+    {"name": "alice"},
+    {"name": "bob"},
+    {"name": "charlie"},
+    {"name": "diana"}
+  ],
+  "projects": [
+    {
+      "name": "Website Relaunch",
+      "description": "New site, new CMS, launch before the conference",
+      "owner": "alice",
+      "managers": ["bob"],
+      "members": ["charlie"],
+      "viewers": ["diana"]
+    },
+    {
+      "name": "Mobile App",
+      "description": "iOS and Android, offline first",
+      "owner": "bob",
+      "managers": [],
+      "members": ["alice", "charlie"],
+      "viewers": []
+    },
+    {
+      "name": "Hiring Plan",
+      "description": "Next year's roles and budget",
+      "owner": "alice",
+      "managers": [],
+      "members": [],
+      "viewers": []
+    }
+  ],
+  "tasks": [
+    {"project": "Website Relaunch", "title": "Pick the new CMS", "status": "Done", "priority": "High", "assignee": "alice"},
+    {"project": "Website Relaunch", "title": "Migrate the blog", "status": "In_Progress", "priority": "Medium", "assignee": "charlie"},
+    {"project": "Website Relaunch", "title": "Write the launch announcement", "status": "ToDo", "priority": "Medium", "assignee": "bob"},
+    {"project": "Website Relaunch", "title": "Fix the contact form", "status": "ToDo", "priority": "High"},
+    {"project": "Mobile App", "title": "Design the onboarding screens", "status": "In_Progress", "priority": "High", "assignee": "bob"},
+    {"project": "Mobile App", "title": "Offline sync", "status": "ToDo", "priority": "Critical", "assignee": "charlie"},
+    {"project": "Mobile App", "title": "Review the App Store copy", "status": "ToDo", "priority": "LOW", "assignee": "diana"},
+    {"project": "Hiring Plan", "title": "Draft the backend engineer role", "status": "ToDo", "priority": "Medium", "assignee": "alice"}
+  ]
+}

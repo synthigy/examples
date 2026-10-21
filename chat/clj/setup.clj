@@ -44,9 +44,9 @@
         refs       (fn [names] (vec (for [n names] {:xid (user-xid n)})))]
 
     ;; `stack`, not `sync`, for anything touching a user's link-sets: the cast
-    ;; is SHARED with the rls-demo, which seeds the same alice/bob/charlie/
-    ;; diana and grants its own role and group. `sync` replaces the link-set
-    ;; and would strip that grant; `stack` adds and never removes.
+    ;; is SHARED with project-management, which seeds the same alice/bob/
+    ;; charlie/diana and links them to its projects. `sync` replaces the
+    ;; link-set and would strip those links; `stack` adds and never removes.
     (syn/stack "User"
                (vec (for [u users]
                       {:xid (user-xid (:name u)) :name (:name u) :type "PERSON" :active true})))

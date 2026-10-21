@@ -36,11 +36,11 @@ client() {
     --role SUPERUSER --api Synthigy --trusted --local
 }
 
-client "RLS Demo BFF"        rls-demo-bff   rlsbff-secret
-client "chat-bff"            chat-bff       chatbff-secret
-client "Movies (Go)"         movies-go      moviesgo-secret
-client "Movies (PHP)"        movies-php     moviesphp-secret
-client "Movies (JS)"         movies-js      movies-secret 5174
-client "Datastar Music Demo" datastar-music music-secret  5175
+client "Project Management BFF" project-management-bff pmbff-secret
+client "chat-bff"               chat-bff               chatbff-secret
+client "Movies (Go)"            movies-go              moviesgo-secret
+client "Movies (PHP)"           movies-php             moviesphp-secret
+client "Movies (JS)"            movies-js              movies-secret 5174
+client "Datastar Music Demo"    datastar-music         music-secret  5175
 
 ./scripts/add-tools-redirect.sh http://localhost:5174 http://localhost:5175 http://localhost:5176 http://localhost:5177

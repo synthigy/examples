@@ -38,6 +38,7 @@ from datastar_py.fastapi import ServerSentEventGenerator as SSE
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import (FileResponse, HTMLResponse, PlainTextResponse,
                                RedirectResponse)
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import synthigy
 from synthigy import SynthigyError, eq, gt
@@ -64,6 +65,12 @@ TOP_N = 8
 # source, live off disk. Resolved from this file, not the cwd, so it works
 # regardless of where uvicorn is launched from. See examples/shared/README.md.
 SHARED_DIR = Path(__file__).resolve().parent.parent.parent / "shared"
+
+# music/brand/ — the Groove Harbor brand: brand.css + logo.svg for the app,
+# and the same directory is the engine's custom-pages bundle (brand.py).
+BRAND_DIR = Path(__file__).resolve().parent.parent / "brand"
+BRAND_BUNDLE = os.environ.get("BRAND_BUNDLE", "groove-harbor")
+PUBLIC_ENDPOINT = os.environ.get("SYNTHIGY_PUBLIC_ENDPOINT", ENDPOINT).rstrip("/")
 
 if not CLIENT_ID or not CLIENT_SECRET:
     raise SystemExit("SYNTHIGY_CLIENT_ID and SYNTHIGY_CLIENT_SECRET are required "
@@ -146,6 +153,32 @@ def tour_json():
                         headers={"Cache-Control": "no-store"})
 
 
+@app.get("/theme.css")
+def theme_css():
+    return FileResponse(SHARED_DIR / "theme.css", media_type="text/css",
+                        headers={"Cache-Control": "no-store"})
+
+
+@app.get("/chrome.js")
+def chrome_js():
+    return FileResponse(SHARED_DIR / "chrome.js", media_type="application/javascript",
+                        headers={"Cache-Control": "no-store"})
+
+
+# The brand's own assets. Only what the app links to: the pages in that
+# directory are the engine's to serve, from the uploaded bundle.
+_BRAND_MEDIA = {".css": "text/css", ".svg": "image/svg+xml"}
+
+
+@app.get("/brand/{name}")
+def brand_asset(name: str):
+    path = (BRAND_DIR / name).resolve()
+    media = _BRAND_MEDIA.get(path.suffix)
+    if not media or not path.is_file() or BRAND_DIR.resolve() not in path.parents:
+        raise HTTPException(status_code=404)
+    return FileResponse(path, media_type=media, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/tour.js")
 def tour_js():
     return FileResponse(SHARED_DIR / "tour.js",
@@ -217,7 +250,7 @@ async def album_detail(request: Request, xid: str):
         return _login_redirect(f"/albums/{xid}")
     alb = await MusicAlbumAsync.detail({"xid": xid}, acting_as=sess.user.xid)
     if not alb:
-        return HTMLResponse("<h1>Not found</h1>", status_code=404)
+        return HTMLResponse(views.error_page(sess.user, 404), status_code=404)
     events = await _fetch_history(xid)
     return views.album_detail_page(sess.user, alb, views.history_html(events))
 
@@ -573,17 +606,16 @@ async def login(returnTo: str = "/"):
 @app.get("/auth/callback")
 async def callback(code: str = "", state: str = "", error: str = ""):
     if error:
-        cancelled = await synthigy.aclient().login.cancel(state)
-        return RedirectResponse(cancelled["return_to"] if cancelled else "/",
-                                status_code=302)
+        await synthigy.aclient().login.cancel(state)
+        return HTMLResponse(views.error_page(None, "auth", error), status_code=400)
     if not code or not state:
-        return PlainTextResponse("missing code or state", status_code=400)
+        return HTMLResponse(views.error_page(None, "auth", "missing code or state"), status_code=400)
     try:
         done = await synthigy.aclient().login.complete(
             code=code, state=state, redirect_uri=REDIRECT_URI)
     except SynthigyError as e:
-        return PlainTextResponse(
-            str(e), status_code=502 if e.code == "LOGIN_EXCHANGE_FAILED" else 400)
+        return HTMLResponse(views.error_page(None, "auth", e.code),
+                            status_code=502 if e.code == "LOGIN_EXCHANGE_FAILED" else 400)
     resp = RedirectResponse(done["return_to"], status_code=302)
     resp.headers["Set-Cookie"] = auth.cookie_header(auth.create_session(done))
     return resp
@@ -592,6 +624,54 @@ async def callback(code: str = "", state: str = "", error: str = ""):
 @app.api_route("/logout", methods=["GET", "POST"])
 async def logout(request: Request):
     auth.drop_session(request.cookies.get(auth.SESSION_COOKIE))
-    resp = RedirectResponse("/", status_code=302)
+    resp = RedirectResponse("/signed-out", status_code=302)
     resp.headers["Set-Cookie"] = auth.clear_cookie_header()
     return resp
+
+
+# ── brand: signed out, the gallery, and every error as a page ────────────
+
+@app.get("/signed-out", response_class=HTMLResponse)
+async def signed_out(request: Request):
+    sess = _session(request)
+    return views.signed_out_page(sess.user if sess else None)
+
+
+@app.get("/brand", response_class=HTMLResponse)
+async def brand(request: Request):
+    sess = _session(request)
+    return views.brand_page(sess.user if sess else None, PUBLIC_ENDPOINT, BRAND_BUNDLE)
+
+
+@app.get("/brand/preview/{kind}", response_class=HTMLResponse)
+async def brand_preview(request: Request, kind: str):
+    sess = _session(request)
+    k = int(kind) if kind.isdigit() else kind
+    if k not in views.ERRORS:
+        raise HTTPException(status_code=404)
+    return views.error_page(sess.user if sess else None, k, preview=True)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, exc: StarletteHTTPException):
+    if exc.status_code not in (403, 404):
+        return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
+    sess = _session(request)
+    return HTMLResponse(views.error_page(sess.user if sess else None, exc.status_code),
+                        status_code=exc.status_code)
+
+
+@app.exception_handler(SynthigyError)
+async def engine_error(request: Request, exc: SynthigyError):
+    # A page the engine refused for this person is a 403, in the brand; any
+    # other engine error is the app's 500.
+    sess = _session(request)
+    kind = 403 if exc.category == "iam" else 500
+    return HTMLResponse(views.error_page(sess.user if sess else None, kind, exc.code),
+                        status_code=kind)
+
+
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, exc: Exception):
+    sess = _session(request)
+    return HTMLResponse(views.error_page(sess.user if sess else None, 500), status_code=500)

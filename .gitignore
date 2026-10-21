@@ -11,9 +11,6 @@ datasets/movies/movies-32m/
 datasets/movies/movies-10m/
 datasets/movies/movies-1m/
 
-# Generated bench fixtures (see rls-demo/README.md for the generator)
-datasets/project-management/bench/
-
 # Codegen output — the .xsql under <domain>/xsql/ is the source of truth,
 # every language regenerates on run.
 **/generated/
@@ -30,7 +27,7 @@ datasets/project-management/bench/
 **/synthigy.schema.json
 
 # Compiled binaries left next to an example's source
-rls-demo/go/rls-demo-bff
+project-management/go/project-management-bff
 **/*.test
 
 # Per-language dependency trees and build output

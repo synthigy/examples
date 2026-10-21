@@ -1,0 +1,93 @@
+{
+  "name": "project-management",
+  "steps": [
+    {
+      "target": "cast",
+      "title": "One client, four people",
+      "body": "This app holds ONE confidential client. Every read and every write names the person it acts for (acting_as), and the engine answers as that person. The app filters nothing itself: no WHERE clause anywhere decides who sees what."
+    },
+    {
+      "target": "projects",
+      "title": "Roles are relations",
+      "body": "Alice owns Website Relaunch and Hiring Plan and is a member of Mobile App. Owner, manager, member and viewer are four relations from Project to User, and each one carries a guard in the model."
+    },
+    {
+      "target": "access",
+      "title": "Who can do what",
+      "body": "Open the overview: the same query, run once as each person.",
+      "action": { "label": "Open it", "do": "open-access" },
+      "wait": { "watch": "#main" }
+    },
+    {
+      "target": "matrix",
+      "title": "Same query, four answers",
+      "body": "Each row is that person's own read, through the same client. Bob never sees Hiring Plan; for him it does not exist. Diana reads one project, as a viewer, and one task elsewhere: it is assigned to her."
+    },
+    {
+      "target": "legend",
+      "title": "The guards, in words",
+      "body": "Owners may do everything, managers everything but delete the project, members read everything and change only their own tasks, viewers only read. And anyone may change a task assigned to them, even in a project they cannot open."
+    },
+    {
+      "target": "cast",
+      "title": "Now be Charlie",
+      "body": "Charlie is a member of Website Relaunch: he reads every task in it, and may change only the ones assigned to him.",
+      "action": { "label": "Be Charlie", "do": "as-charlie" },
+      "wait": { "watch": "#main" }
+    },
+    {
+      "target": "board",
+      "title": "Same buttons, different answers",
+      "html": "Move Bob's <em>Write the launch announcement</em>: the engine refuses, <code>ROW_FORBIDDEN · iam</code>. Then move <em>Migrate the blog</em>, which is Charlie's: it goes through. Nothing is hidden or disabled in the page; the answer comes from the guards.",
+      "wait": { "watch": "#toast" }
+    },
+    {
+      "target": "new-task",
+      "title": "Adding a task writes the project",
+      "body": "Try adding one. A task is added through its project, so the project's guard decides, and a member may only read the project. Owners and managers may."
+    },
+    {
+      "target": "roles",
+      "title": "Who may change who is in",
+      "body": "Try adding Diana as a member. Refused for the same reason: the people of a project are its links, and only its owner and managers may write them."
+    },
+    {
+      "target": "topbar-tour",
+      "title": "Bob, the manager",
+      "body": "Open Bob's window. He manages Website Relaunch: he may add, assign and delete its tasks, but not delete the project. Keep both windows where you can see them.",
+      "action": { "label": "Open Bob's window", "do": "open-bob" }
+    },
+    {
+      "target": "bell",
+      "title": "Notifications that cannot leak",
+      "html": "In Bob's window, assign <em>Fix the contact form</em> to Charlie. A notification arrives here, the bell counts it and so does the tab title. The app is told only that something changed; it reads again <em>as Charlie</em> and writes the notification from the difference, so it can never name a row Charlie may not read.",
+      "wait": { "watch": "#bell" }
+    },
+    {
+      "target": "topbar-tour",
+      "title": "Diana, the viewer",
+      "body": "Open Diana's window. She reads Website Relaunch and can change none of it. Under 'Projects you can't open' she has one task in Mobile App: the task's assignee guard lets her in, the project's guards keep the project out.",
+      "action": { "label": "Open Diana's window", "do": "open-diana" }
+    },
+    {
+      "target": "workload",
+      "title": "Same SQL, different numbers",
+      "body": "One SQL template for everyone. The engine injects the task guards into it, so each person counts only what they may read: Charlie sees less of Alice's work than Alice does."
+    },
+    {
+      "tool": "model",
+      "anchor": "entity",
+      "title": "The guards live in the model",
+      "body": "Project and Project Task carry every rule you just met: four role relations on Project, the same four reached through the project on Project Task, and the assignee. They ship with the model and apply to any client, this one included."
+    },
+    { "tool": "console", "only": ["workspaces", "run", "results"] }
+  ],
+  "tools": {
+    "console": {
+      "workspaces": {
+        "title": "The data layer is this file",
+        "html": "This tab is <code>project.xsql</code>: projects with their people, tasks, and the workload SQL. <code>go generate</code> turned it into the typed Go API the app calls, the <code>Overview</code> batch included. Run one and you get exactly what the page gets, as the user you signed in as."
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Groove Harbor</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="brand.css">
+</head>
+<body class="gh-page">
+  <!--
+    An authorization request the engine rejected before sign-in, when it must
+    not send the browser back: error.html?error=…&secure=true|false
+    Read-only. With secure=true the request may be an attack: say not to
+    enter credentials and offer no way to sign in.
+
+    Like status.html, the engine serves this from the "default" bundle only
+    (engine 0.3.0); see the music README, "What the engine does not brand yet".
+  -->
+  <aside class="gh-poster" aria-hidden="true">
+    <div class="gh-poster-top">
+      <img src="logo.svg" alt="" width="44" height="44">
+      <span class="gh-kicker">Side A · 33⅓ rpm</span>
+    </div>
+    <h2 class="gh-display">Groove<br>Harbor<span class="gh-serif">your record shelf, live.</span></h2>
+    <div class="gh-disc"></div>
+  </aside>
+  <main class="gh-panel">
+    <span class="gh-kicker"><b>Sign-in</b> · Groove Harbor</span>
+    <div class="gh-warn" id="warn" hidden>This request may not be genuine. Don't enter your password.</div>
+    <h1 class="gh-display" id="title">We can't open this sign-in</h1>
+    <p id="message"></p>
+    <div class="gh-code" id="code"></div>
+  </main>
+  <script>
+    var MESSAGES = {
+      client_not_registered: ['Unknown app', "This app isn't registered with Groove Harbor."],
+      corrupt_session: ['Session problem', "We couldn't verify your sign-in session. Try again."],
+      invalid_login_page: ['Setup problem', "This app's sign-in page isn't set up correctly."],
+      missing_redirect: ['Incomplete request', 'The app left out where to send you back to.'],
+      missing_response_type: ['Incomplete request', 'The app sent an incomplete sign-in request.'],
+      no_redirections: ['Sign-in blocked', 'This app has no return address configured.'],
+      redirect_missmatch: ['Sign-in blocked', "The app's return address doesn't match its setup."],
+      unsupported_grant_type: ['Not supported', "That kind of sign-in isn't supported."]
+    };
+    var q = new URLSearchParams(location.search);
+    var error = q.get('error'), m = MESSAGES[error];
+    if (m) { document.getElementById('title').textContent = m[0]; document.getElementById('message').textContent = m[1]; }
+    else document.getElementById('message').textContent = 'The sign-in request was rejected.';
+    if (q.get('secure') === 'true') document.getElementById('warn').hidden = false;
+    document.getElementById('code').textContent = error ? 'code: ' + error : '';
+  </script>
+</body>
+</html>

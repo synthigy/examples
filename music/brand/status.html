@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Groove Harbor</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="brand.css">
+</head>
+<body class="gh-page">
+  <!--
+    Where a sign-in ends when there is no app to send the browser back to:
+    status.html?value=success|error|canceled&error=…&flow=…
+    Read-only. Display the outcome, POST nothing; text goes in with
+    textContent, never innerHTML.
+
+    The engine serves this page from the "default" bundle only (engine
+    0.3.0), so in the shared examples instance the music app cannot show it
+    yet. It is here so the bundle is complete the day it can; see the music
+    README, "What the engine does not brand yet".
+  -->
+  <aside class="gh-poster" aria-hidden="true">
+    <div class="gh-poster-top">
+      <img src="logo.svg" alt="" width="44" height="44">
+      <span class="gh-kicker">Side A · 33⅓ rpm</span>
+    </div>
+    <h2 class="gh-display">Groove<br>Harbor<span class="gh-serif">your record shelf, live.</span></h2>
+    <div class="gh-disc"></div>
+  </aside>
+  <main class="gh-panel">
+    <span class="gh-kicker"><b>Sign-in</b> · Groove Harbor</span>
+    <h1 class="gh-display" id="title">Signing in</h1>
+    <p id="message"></p>
+    <a class="gh-btn" id="action" href="javascript:history.back()">Back</a>
+    <div class="gh-code" id="code"></div>
+  </main>
+  <script>
+    var NEEDS_ADMIN = { access_denied: 1, callback_error: 1, claim_method_not_allowed: 1, identity_already_linked: 1,
+      link_session_mismatch: 1, no_flow: 1, provider_disabled: 1, provider_unknown: 1, provision_failed: 1, token_invalid: 1 };
+    var MESSAGES = {
+      access_denied: 'Your account may not use this app.',
+      already_authorized: 'Someone already signed in with this code.',
+      broken_flow: 'This sign-in got lost on the way. Start again.',
+      callback_error: 'The sign-in provider returned an error.',
+      cancelled: 'You cancelled the sign-in.',
+      challenge: 'A suspicious change was detected, so we stopped. Start again.',
+      claim_invalid: 'This invitation link is invalid or was already used.',
+      claim_method_not_allowed: "This invitation doesn't allow that sign-in method.",
+      device_code_expired: 'The code you entered has expired.',
+      email_exists: 'An account with this email already exists. Sign in with it, then link this one.',
+      expired_code: 'This sign-in took too long. Start again.',
+      identity_already_linked: 'That account is already linked to someone.',
+      ip_address: 'Your network changed during sign-in. Start again.',
+      link_reauth_required: 'Please sign in again before linking a new method.',
+      link_requires_login: 'Sign in first, then link that account.',
+      link_session_mismatch: "We couldn't verify that link. Try linking again.",
+      no_code: 'The sign-in provider sent no code.',
+      no_flow: 'This sign-in carried nothing to continue.',
+      not_linked: "That account isn't linked to anyone here.",
+      provider_disabled: 'That sign-in method is switched off.',
+      provider_unknown: "That sign-in method doesn't exist.",
+      provider_unsupported: "We couldn't reach that provider.",
+      provision_failed: "We couldn't create your account.",
+      reauth_identity_mismatch: 'You confirmed with a different account than the one signed in.',
+      state_invalid: 'That sign-in link expired.',
+      token_invalid: "The provider's answer couldn't be verified.",
+      user_agent: 'Your browser changed during sign-in. Start again.'
+    };
+    var q = new URLSearchParams(location.search);
+    var value = q.get('value'), error = q.get('error');
+    var title = document.getElementById('title'), msg = document.getElementById('message');
+    if (value === 'success') {
+      title.textContent = "You're in";
+      msg.textContent = q.get('client_name')
+        ? q.get('client_name') + ' is now signed in as ' + (q.get('user') || 'you') + '. You can close this window.'
+        : 'All done. You can close this window.';
+    } else if (value === 'canceled' || error === 'cancelled') {
+      title.textContent = 'Cancelled';
+      msg.textContent = 'Nothing changed. You can close this window.';
+    } else {
+      title.textContent = "That didn't work";
+      msg.textContent = (MESSAGES[error] || q.get('error_description') || 'Something went wrong signing in.') +
+        (NEEDS_ADMIN[error] ? ' If it keeps happening, ask whoever runs Groove Harbor.' : '');
+      document.getElementById('code').textContent = error ? 'code: ' + error : '';
+    }
+  </script>
+</body>
+</html>

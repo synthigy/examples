@@ -23,7 +23,7 @@ Then follow the README of the port you want; every command there is
 | [movies](movies/) | [datasets/movies](datasets/movies/) | [js](movies/js/) | — | [go](movies/go/) | [php](movies/php/) | — |
 | [chat](chat/) | [datasets/chat](datasets/chat/) | — | — | — | — | [clj](chat/clj/) |
 | [music](music/) | [datasets/music](datasets/music/) | — | [py](music/py/) | — | — | — |
-| [rls-demo](rls-demo/) | [datasets/project-management](datasets/project-management/) | — | — | [go](rls-demo/go/) | — | — |
+| [project-management](project-management/) | [datasets/project-management](datasets/project-management/) | — | — | [go](project-management/go/) | — | — |
 
 ```
 datasets/<domain>/      model JSON, seed data, prep scripts
@@ -63,7 +63,7 @@ bench/                  benchmark harnesses (movies dataset)
   still carries `acting_as`, so the model's guards decide what a visitor sees.
   Local/ephemeral instances only.
 - **The cast is shared, and link-sets on `User` are always `stack`.**
-  rls-demo and chat both seed alice, bob, charlie and diana (password
+  project-management and chat both seed alice, bob, charlie and diana (password
   `password`). `sync` replaces a link-set and would strip what the other demo
   granted; `stack` only adds.
 - **The tools rail shows the `admin`/`admin` login** for Model, Console and
