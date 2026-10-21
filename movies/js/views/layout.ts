@@ -17,6 +17,9 @@ const ENDPOINT = process.env.SYNTHIGY_PUBLIC_ENDPOINT
   ?? process.env.SYNTHIGY_ENDPOINT
   ?? "http://localhost:7887"
 
+// The examples landing page; when set, the header links back to it.
+const EXAMPLES_URL = process.env.EXAMPLES_URL ?? ""
+
 // Point the rail at a locally built bundle when one is present (dropped by
 // examples/scripts/build-tooling.sh), so a component change can be tested
 // before @synthigy/tooling is republished; otherwise the rail uses the pinned
@@ -129,6 +132,7 @@ export function layout({ title, user, content, stream, fill }: LayoutProps) {
   <header class="topbar ty-content flex items-center px-6 py-3 gap-8 shrink-0 border-b
                  max-[1100px]:flex-wrap max-[1100px]:px-3 max-[1100px]:py-2 max-[1100px]:gap-x-3 max-[1100px]:gap-y-1.5
                  max-[560px]:px-2.5 max-[560px]:gap-x-2">
+    ${EXAMPLES_URL ? `<a class="back-link flex items-center gap-1 shrink-0" href="${esc(EXAMPLES_URL)}">${icon("arrow-left", { size: "xs" })}examples</a>` : ""}
     <a class="brand flex items-center gap-2 shrink-0 font-semibold text-[1.02rem] tracking-[-0.01em]" href="/">
       ${icon("film", { size: "md" })}
       <span class="max-[560px]:hidden">movies</span>

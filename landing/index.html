@@ -1,0 +1,444 @@
+<!doctype html>
+<!--
+  The examples landing page: where a visitor picks which example to open.
+  Static, one file. In the demo image the proxy serves it at "/"; locally,
+  node scripts/landing.mjs does (README.md here). Every link to an example
+  is written as its local default (http://localhost:517x/); landing.mjs
+  rewrites them from MOVIES_URL, CHAT_URL, PM_URL and MUSIC_URL, and so can
+  any proxy.
+-->
+<html lang="en" class="dark" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synthigy examples</title>
+  <meta name="description" content="Four working apps on one Synthigy engine: pick the part of the platform you want to see.">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tyrell-components@1.0.0-TC55/css/tyrell.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tyrell-components@1.0.0-TC55/css/tyrell-theme.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/tyrell-components@1.0.0-TC55/dist/tyrell.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } }</script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Instrument+Serif:ital@1&display=swap">
+  <link rel="stylesheet" href="/theme.css">
+  <style>
+    :root { --glow: color-mix(in oklch, var(--ty-color-primary) 22%, transparent); }
+    .page-scroll {
+      background:
+        radial-gradient(900px 480px at 78% -6%, var(--glow), transparent 62%),
+        linear-gradient(var(--ty-surface-canvas), var(--ty-surface-canvas));
+    }
+    .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+    .kicker { font: 600 .7rem/1.4 var(--font-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ty-text-faint); }
+    .kicker b { color: var(--ty-color-primary); font-weight: 600; }
+
+    /* ── hero ─────────────────────────────────────────────────────────── */
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 40px; align-items: center;
+            padding: 56px 24px 64px; }
+    .hero h1 { display: block; margin: 16px 0 18px; font-size: clamp(2.8rem, 6vw, 4.6rem);
+               line-height: .98; letter-spacing: -.045em; font-weight: 700; }
+    .hero h1 span { color: var(--ty-color-primary); }
+    .lede { font-size: 1.1rem; line-height: 1.6; color: var(--ty-text-soft); max-width: 46ch; }
+    .cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+    .cta a:hover { text-decoration: none; }
+
+    /* the diagram: four apps wired to one engine, events running the wires */
+    .diagram { width: 100%; height: auto; overflow: visible; }
+    .diagram .wire { fill: none; stroke: var(--ty-border); stroke-width: 1.5; }
+    .diagram .pulse { fill: none; stroke: var(--ty-color-primary); stroke-width: 2; stroke-linecap: round;
+                      stroke-dasharray: 10 190; animation: run 3.2s linear infinite; }
+    .diagram .pulse.b { animation-delay: -.8s; } .diagram .pulse.c { animation-delay: -1.6s; } .diagram .pulse.d { animation-delay: -2.4s; }
+    @keyframes run { to { stroke-dashoffset: -200; } }
+    .diagram .node rect { fill: var(--ty-surface-content); stroke: var(--ty-border); stroke-width: 1.2; transition: stroke .15s; }
+    .diagram a:hover .node rect { stroke: var(--ty-color-primary); }
+    .diagram .node .name { fill: var(--ty-text); font: 600 15px var(--font-body); }
+    .diagram .node .lang { fill: var(--ty-text-faint); font: 500 10.5px var(--font-mono); letter-spacing: .06em; }
+    .diagram .node .dot { fill: var(--ty-color-primary); }
+    .diagram .engine rect.body { fill: color-mix(in oklch, var(--ty-color-primary) 10%, var(--ty-surface-content));
+                                 stroke: var(--ty-color-primary); stroke-width: 1.5; }
+    .diagram .engine .title { fill: var(--ty-text); font: 700 19px var(--font-body); letter-spacing: -.01em; }
+    .diagram .engine .sub { fill: var(--ty-text-soft); font: 500 10.5px var(--font-mono); letter-spacing: .04em; }
+    .diagram .engine .ring { fill: none; stroke: var(--ty-color-primary); stroke-opacity: .35; animation: breathe 3.2s ease-in-out infinite; transform-origin: 260px 210px; }
+    @keyframes breathe { 50% { stroke-opacity: .05; transform: scale(1.06); } }
+    .diagram .label { fill: var(--ty-text-faint); font: 500 10px var(--font-mono); letter-spacing: .12em; }
+
+    /* ── the four examples ────────────────────────────────────────────── */
+    .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+                    padding-bottom: 14px; margin-bottom: 22px; border-bottom: 1px solid var(--ty-border); }
+    .section-head h2 { display: block; font-size: 1.7rem; letter-spacing: -.02em; font-weight: 700; margin-top: 8px; }
+    .examples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .example {
+      display: flex; flex-direction: column; color: inherit; overflow: hidden; position: relative;
+      background: var(--ty-surface-content); border: 1px solid var(--ty-border); border-radius: 14px;
+      transition: border-color .2s, transform .2s, box-shadow .2s;
+    }
+    .example:hover { text-decoration: none; border-color: color-mix(in oklch, var(--ty-color-primary) 70%, transparent);
+                     transform: translateY(-3px); box-shadow: 0 30px 60px -36px rgba(0, 0, 0, .9); }
+    .example-body { padding: 20px 22px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+    .example-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .example h3 { display: block; font-size: 1.35rem; font-weight: 700; letter-spacing: -.02em; }
+    .lang { font: 500 .72rem/1 var(--font-mono); color: var(--ty-text-faint); }
+    .num { font: 600 .72rem var(--font-mono); color: var(--ty-color-primary); margin-left: auto; }
+    .highlight { font-size: 1rem; font-weight: 600; line-height: 1.45; }
+    .example ul { margin: 0; padding-left: 1.05em; color: var(--ty-text-soft); font-size: .9rem; line-height: 1.5; }
+    .example li { margin: 4px 0; }
+    .example li::marker { color: var(--ty-color-primary); }
+    .example-foot { margin-top: auto; padding-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                    border-top: 1px solid var(--ty-border-soft); }
+    .open { font: 600 .8rem var(--font-mono); color: var(--ty-color-primary); display: inline-flex; align-items: center; gap: 6px; }
+    .open .arrow { transition: transform .15s; }
+    .example:hover .open .arrow { transform: translateX(4px); }
+    .caps { font: 500 .68rem var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ty-text-faint); }
+
+    /* the miniature at the top of each card: what that app is about, drawn */
+    .mock { height: 188px; position: relative; overflow: hidden; border-bottom: 1px solid var(--ty-border);
+            background: var(--ty-surface-elevated); padding: 18px 20px; }
+
+    /* movies: rows that light up as ratings land, and a counter that climbs */
+    .mm { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 16px; height: 100%; }
+    .mm-row { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 7px; font-size: .82rem; }
+    .mm-row + .mm-row { margin-top: 3px; }
+    .mm-poster { width: 20px; height: 27px; border-radius: 3px; flex: none;
+                 background: linear-gradient(160deg, #3a3a3a, #1b1b1b); border: 1px solid var(--ty-border); }
+    .mm-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ty-text); }
+    .mm-stars { font-size: .72rem; letter-spacing: 1px; color: var(--ty-color-primary); }
+    .mm-row.flash { animation: flash 1.4s ease-out; }
+    @keyframes flash { 0% { background: color-mix(in oklch, var(--ty-color-primary) 22%, transparent); } 100% { background: transparent; } }
+    .mm-counter { align-self: start; padding: 14px; border: 1px solid var(--ty-border); border-radius: 10px; background: var(--ty-surface-content); }
+    .mm-counter span { display: block; font: 500 .62rem var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ty-text-faint); }
+    .mm-counter b { display: block; margin-top: 6px; font-size: 1.5rem; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ty-color-primary); }
+    .mm-counter i { display: flex; align-items: center; gap: 6px; margin-top: 8px; font: normal 500 .62rem var(--font-mono); color: var(--ty-text-faint); }
+
+    /* chat: your rooms, and a message that never reaches you */
+    .mc { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 14px; height: 100%; font-size: .8rem; }
+    .mc-rooms div { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: 6px; color: var(--ty-text-soft); }
+    .mc-rooms div.on { background: var(--ty-surface-content); color: var(--ty-text); }
+    .mc-rooms div.off { color: var(--ty-text-faint); opacity: .55; }
+    .mc-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--ty-color-primary); color: #111;
+                font: 700 .66rem/18px var(--font-mono); text-align: center; }
+    .mc-thread { display: flex; flex-direction: column; gap: 7px; }
+    .mc-msg { max-width: 88%; padding: 7px 10px; border-radius: 10px; background: var(--ty-surface-content); border: 1px solid var(--ty-border); }
+    .mc-msg small { display: block; font: 500 .62rem var(--font-mono); color: var(--ty-text-faint); margin-bottom: 2px; }
+    .mc-msg.me { align-self: flex-end; background: color-mix(in oklch, var(--ty-color-primary) 16%, var(--ty-surface-content)); }
+    .mc-msg.new { animation: rise .5s ease-out both; animation-delay: .6s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+    .mc-blocked { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; border: 1px dashed var(--ty-border);
+                  font: 500 .68rem var(--font-mono); color: var(--ty-text-faint); }
+
+    /* project management: roles down, rights across, one typed refusal */
+    .mp { width: 100%; border-collapse: collapse; font-size: .78rem; }
+    .mp th { font: 500 .62rem var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ty-text-faint);
+             text-align: center; padding: 0 6px 8px; }
+    .mp th:first-child { text-align: left; padding-left: 0; }
+    .mp td { padding: 6px; text-align: center; border-top: 1px solid var(--ty-border-soft); }
+    .mp td:first-child { text-align: left; padding-left: 0; color: var(--ty-text); }
+    .mp td:first-child small { color: var(--ty-text-faint); font: 500 .66rem var(--font-mono); margin-left: 6px; }
+    .yes { color: var(--ty-color-success); font-weight: 700; }
+    .no { color: var(--ty-text-faint); }
+    .refused .no { color: var(--ty-color-danger); }
+    .refused em { display: inline-block; margin-left: 6px; white-space: nowrap; font: normal 600 .58rem var(--font-mono);
+                  padding: 2px 6px; border-radius: 6px; color: var(--ty-color-danger); vertical-align: 1px;
+                  background: color-mix(in oklch, var(--ty-color-danger) 14%, var(--ty-surface-content));
+                  border: 1px solid color-mix(in oklch, var(--ty-color-danger) 40%, transparent); }
+
+    /* music: a miniature of the Groove Harbor sign-in, in its own colours */
+    .mock.mu { padding: 0; background: #ebe5d9; display: grid; grid-template-columns: 1fr 1fr; }
+    .mu-poster { background: #2a3dff; position: relative; overflow: hidden; padding: 16px; display: flex; align-items: flex-end; }
+    .mu-poster b { position: relative; color: #f6f2ea; font: 850 2.15rem/.86 "Archivo", sans-serif; font-stretch: 68%;
+                   text-transform: uppercase; letter-spacing: -.01em; }
+    .mu-disc { position: absolute; width: 150px; height: 150px; right: -42px; top: -44px; border-radius: 50%;
+               background:
+                 radial-gradient(circle, #2a3dff 0 2.4%, transparent 2.6%),
+                 radial-gradient(circle, #f6f2ea 0 30%, #131313 30.5% 32%, transparent 32.2%),
+                 repeating-radial-gradient(circle, #181818 0 1.5px, #262626 1.5px 2.5px, #181818 2.5px 4px);
+               animation: spin 9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .mu-form { padding: 18px 18px 0; color: #131313; }
+    .mu-form i { font: 600 .55rem var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: #6b665e; font-style: normal; }
+    .mu-form p { margin: 5px 0 12px; font: 850 1.3rem/.9 "Archivo", sans-serif; font-stretch: 68%; text-transform: uppercase; }
+    .mu-form p span { font: italic 400 1.2rem "Instrument Serif", serif; text-transform: none; color: #2a3dff; }
+    .mu-field { height: 22px; border: 1.5px solid #bdb4a3; background: #f6f2ea; border-radius: 2px; margin-bottom: 8px; }
+    .mu-btn { height: 24px; border-radius: 999px; background: #131313; margin-top: 12px; }
+
+    /* ── what each one shows ──────────────────────────────────────────── */
+    .matrix-wrap { overflow-x: auto; border: 1px solid var(--ty-border); border-radius: 14px; background: var(--ty-surface-content); }
+    .matrix { width: 100%; min-width: 640px; border-collapse: collapse; font-size: .9rem; }
+    .matrix th, .matrix td { padding: 12px 16px; border-bottom: 1px solid var(--ty-border-soft); }
+    .matrix tr:last-child td { border-bottom: 0; }
+    .matrix thead th { font: 600 .7rem var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ty-text-faint);
+                       text-align: center; background: var(--ty-surface-elevated); }
+    .matrix thead th:first-child { text-align: left; }
+    .matrix thead a { color: var(--ty-text-soft); }
+    .matrix thead a:hover { color: var(--ty-color-primary); text-decoration: none; }
+    .matrix td { text-align: center; }
+    .matrix td:first-child { text-align: left; color: var(--ty-text); }
+    .matrix td:first-child small { display: block; color: var(--ty-text-faint); font-size: .78rem; margin-top: 2px; }
+    .matrix tbody tr:hover { background: color-mix(in oklch, var(--ty-color-primary) 5%, transparent); }
+    .dot-on { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--ty-color-primary);
+          box-shadow: 0 0 0 4px color-mix(in oklch, var(--ty-color-primary) 18%, transparent); }
+    .dot-off { display: inline-block; width: 10px; height: 2px; border-radius: 2px; background: var(--ty-border); vertical-align: middle; }
+
+    /* ── under every example ──────────────────────────────────────────── */
+    .common { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--ty-border); border-radius: 14px; overflow: hidden; }
+    .common div { padding: 20px; background: var(--ty-surface-content); }
+    .common div + div { border-left: 1px solid var(--ty-border); }
+    .common b { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: .95rem; }
+    .common b ty-icon { color: var(--ty-color-primary); }
+    .common p { color: var(--ty-text-soft); font-size: .86rem; line-height: 1.55; }
+
+    @media (max-width: 920px) {
+      .hero { grid-template-columns: 1fr; padding-top: 36px; gap: 24px; }
+      .examples { grid-template-columns: 1fr; }
+      .common { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .common div:nth-child(3) { border-left: 0; }
+      .common div:nth-child(n+3) { border-top: 1px solid var(--ty-border); }
+    }
+    @media (max-width: 560px) {
+      .wrap, .hero { padding-left: 16px; padding-right: 16px; }
+      .common { grid-template-columns: 1fr; }
+      .common div + div { border-left: 0; border-top: 1px solid var(--ty-border); }
+      .mm { grid-template-columns: 1fr; } .mm-counter { display: none; }
+      .mc { grid-template-columns: 1fr; } .mc-rooms { display: none; }
+      .refused em { display: none; }
+      .topbar .pill { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .diagram .pulse, .diagram .engine .ring, .mu-disc, .mc-msg.new, .mm-row.flash { animation: none; }
+    }
+  </style>
+</head>
+<body class="ty-canvas">
+  <header class="topbar flex items-center px-6 py-3 gap-6 shrink-0">
+    <a class="brand flex items-center gap-2 shrink-0 font-semibold text-[1.02rem] tracking-[-0.01em]" href="/">
+      <ty-icon size="md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></ty-icon>
+      <span>examples</span>
+    </a>
+    <nav class="flex gap-0.5 flex-1 ml-2">
+      <a class="nav-link px-3 py-1.5 rounded-[6px] text-[0.88rem] font-medium max-[700px]:hidden" href="#examples">The four apps</a>
+      <a class="nav-link px-3 py-1.5 rounded-[6px] text-[0.88rem] font-medium max-[700px]:hidden" href="#compare">What each shows</a>
+    </nav>
+    <span class="pill"><span class="live-dot"></span>one engine · four apps</span>
+  </header>
+
+  <div class="page-scroll">
+    <main>
+      <section class="wrap hero">
+        <div>
+          <span class="kicker"><b>Synthigy</b> · examples</span>
+          <h1>Four apps.<br><span>One engine.</span></h1>
+          <p class="lede">Each example is a real, working app on Synthigy, written in a different language and
+            built to show one part of the platform. Every one has a guided tour, and every one links back here.</p>
+          <div class="cta">
+            <a href="http://localhost:5174/"><ty-button flavor="primary">Start with Movies
+              <ty-icon slot="end" size="sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></ty-icon></ty-button></a>
+            <a href="#compare"><ty-button flavor="neutral" appearance="outlined">Compare what each shows</ty-button></a>
+          </div>
+        </div>
+
+        <svg class="diagram" viewBox="0 0 520 420" role="img" aria-label="Four apps, Movies, Chat, Project Management and Music, all connected to one Synthigy engine">
+          <path class="wire" d="M150 98 C 150 160, 190 180, 205 182"/>
+          <path class="wire" d="M370 98 C 370 160, 330 180, 315 182"/>
+          <path class="wire" d="M150 322 C 150 260, 190 240, 205 238"/>
+          <path class="wire" d="M370 322 C 370 260, 330 240, 315 238"/>
+          <path class="pulse a" d="M150 98 C 150 160, 190 180, 205 182"/>
+          <path class="pulse b" d="M315 182 C 330 180, 370 160, 370 98"/>
+          <path class="pulse c" d="M205 238 C 190 240, 150 260, 150 322"/>
+          <path class="pulse d" d="M370 322 C 370 260, 330 240, 315 238"/>
+
+          <g class="engine">
+            <rect class="ring" x="190" y="150" width="140" height="120" rx="18"/>
+            <rect class="body" x="190" y="150" width="140" height="120" rx="18"/>
+            <text class="sub" x="260" y="186" text-anchor="middle">ONE INSTANCE</text>
+            <text class="title" x="260" y="212" text-anchor="middle">Synthigy</text>
+            <text class="sub" x="260" y="236" text-anchor="middle">/data · /oauth</text>
+            <text class="sub" x="260" y="252" text-anchor="middle">/data/events</text>
+          </g>
+
+          <a href="http://localhost:5174/"><g class="node"><rect x="70" y="42" width="160" height="56" rx="12"/>
+            <circle class="dot" cx="92" cy="70" r="4"/><text class="name" x="106" y="67">Movies</text><text class="lang" x="106" y="83">JAVASCRIPT</text></g></a>
+          <a href="http://localhost:5177/"><g class="node"><rect x="290" y="42" width="160" height="56" rx="12"/>
+            <circle class="dot" cx="312" cy="70" r="4"/><text class="name" x="326" y="67">Chat</text><text class="lang" x="326" y="83">CLOJURE</text></g></a>
+          <a href="http://localhost:5176/"><g class="node"><rect x="70" y="322" width="160" height="56" rx="12"/>
+            <circle class="dot" cx="92" cy="350" r="4"/><text class="name" x="106" y="347">Projects</text><text class="lang" x="106" y="363">GO</text></g></a>
+          <a href="http://localhost:5175/"><g class="node"><rect x="290" y="322" width="160" height="56" rx="12"/>
+            <circle class="dot" cx="312" cy="350" r="4"/><text class="name" x="326" y="347">Music</text><text class="lang" x="326" y="363">PYTHON</text></g></a>
+
+          <text class="label" x="260" y="20" text-anchor="middle">LIVE EVENTS · TYPED QUERIES · ROW-LEVEL SECURITY</text>
+          <text class="label" x="260" y="410" text-anchor="middle">EACH APP: ITS OWN MODEL, ITS OWN BFF</text>
+        </svg>
+      </section>
+
+      <section class="wrap" id="examples">
+        <div class="section-head">
+          <div><span class="kicker"><b>01</b> · pick one</span><h2>The four apps</h2></div>
+          <span class="caps">New here? Start with Movies, then Chat.</span>
+        </div>
+        <div class="examples">
+
+          <a class="example" href="http://localhost:5174/">
+            <div class="mock" aria-hidden="true">
+              <div class="mm">
+                <div>
+                  <div class="mm-row" data-flash><span class="mm-poster"></span><span class="mm-title">Inception</span><span class="mm-stars">★★★★★</span></div>
+                  <div class="mm-row" data-flash><span class="mm-poster"></span><span class="mm-title">The Matrix</span><span class="mm-stars">★★★★☆</span></div>
+                  <div class="mm-row" data-flash><span class="mm-poster"></span><span class="mm-title">Spirited Away</span><span class="mm-stars">★★★★★</span></div>
+                  <div class="mm-row" data-flash><span class="mm-poster"></span><span class="mm-title">Pulp Fiction</span><span class="mm-stars">★★★★☆</span></div>
+                </div>
+                <div class="mm-counter"><span>Ratings</span><b id="tick">100,836</b><i><span class="live-dot"></span>live</i></div>
+              </div>
+            </div>
+            <div class="example-body">
+              <span class="caps">Data · real time · the tools</span>
+              <div class="example-head"><h3>Movies</h3><span class="lang">JavaScript · @synthigy/sdk</span><span class="num">A1</span></div>
+              <p class="highlight">The whole platform, end to end: model, data, live queries and the tools.</p>
+              <ul>
+                <li>Deploy a model and import ~100k rows, step by step from the browser.</li>
+                <li>Live lists and counters over SSE, from typed queries generated from XSQL.</li>
+                <li>The modeler, data console and log cockpit, each with its own tour.</li>
+              </ul>
+              <div class="example-foot"><span class="open">Open movies <span class="arrow">→</span></span><ty-tag size="sm" flavor="primary">Start here</ty-tag></div>
+            </div>
+          </a>
+
+          <a class="example" href="http://localhost:5177/">
+            <div class="mock" aria-hidden="true">
+              <div class="mc">
+                <div class="mc-rooms">
+                  <div class="on"># general <span class="mc-badge">3</span></div>
+                  <div># design</div>
+                  <div class="off">🔒 # board</div>
+                </div>
+                <div class="mc-thread">
+                  <div class="mc-msg"><small>diana</small>Deploy is green.</div>
+                  <div class="mc-msg me new"><small>you</small>Shipping it now.</div>
+                  <div class="mc-blocked">🔒 #board got a message · not delivered to you</div>
+                </div>
+              </div>
+            </div>
+            <div class="example-body">
+              <span class="caps">Row-level security · notifications</span>
+              <div class="example-head"><h3>Chat</h3><span class="lang">Clojure · com.synthigy/sdk</span><span class="num">A2</span></div>
+              <p class="highlight">Who may see and change what, and notifications that cannot leak.</p>
+              <ul>
+                <li>Who sees a room and who may change it is decided by guards in the model.</li>
+                <li>One server-side client, a different person per request with <code>acting_as</code>.</li>
+                <li>Messages, unread badges and alerts reach only those allowed to read them.</li>
+              </ul>
+              <div class="example-foot"><span class="open">Open chat <span class="arrow">→</span></span></div>
+            </div>
+          </a>
+
+          <a class="example" href="http://localhost:5176/">
+            <div class="mock" aria-hidden="true">
+              <table class="mp">
+                <thead><tr><th>Role on the project</th><th>Read</th><th>Change</th><th>Delete</th></tr></thead>
+                <tbody>
+                  <tr><td>Owner<small>alice</small></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                  <tr><td>Manager<small>bob</small></td><td class="yes">✓</td><td class="yes">✓</td><td class="refused"><span class="no">✕</span><em>DELETE_FORBIDDEN</em></td></tr>
+                  <tr><td>Member<small>charlie</small></td><td class="yes">✓</td><td class="no">✕</td><td class="no">✕</td></tr>
+                  <tr><td>Viewer<small>diana</small></td><td class="yes">✓</td><td class="no">✕</td><td class="no">✕</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="example-body">
+              <span class="caps">Access control · typed errors</span>
+              <div class="example-head"><h3>Project Management</h3><span class="lang">Go · github.com/synthigy/go</span><span class="num">A3</span></div>
+              <p class="highlight">Access by role, with every rule in the model and none in the app.</p>
+              <ul>
+                <li>Owner, manager, member and viewer are relations, each carrying a guard.</li>
+                <li>Switch between four people and see exactly what each may read or change.</li>
+                <li>A refused write comes back as a typed error, not a silent failure.</li>
+              </ul>
+              <div class="example-foot"><span class="open">Open project management <span class="arrow">→</span></span></div>
+            </div>
+          </a>
+
+          <a class="example" href="http://localhost:5175/">
+            <div class="mock mu" aria-hidden="true">
+              <div class="mu-poster"><span class="mu-disc"></span><b>Groove<br>Harbor</b></div>
+              <div class="mu-form">
+                <i>Sign in · Groove Harbor</i>
+                <p>Welcome <span>back.</span></p>
+                <div class="mu-field"></div><div class="mu-field"></div><div class="mu-btn"></div>
+              </div>
+            </div>
+            <div class="example-body">
+              <span class="caps">Branding · Python BFF</span>
+              <div class="example-head"><h3>Music</h3><span class="lang">Python · synthigy</span><span class="num">A4</span></div>
+              <p class="highlight">Your brand on the whole platform, the engine's own sign-in included.</p>
+              <ul>
+                <li>Groove Harbor, a made-up brand on every page: the app, its errors, sign-out, sign-in.</li>
+                <li>One directory to swap for your own; what the engine cannot brand yet is listed.</li>
+                <li>Underneath, a Python BFF: a live chart, nested writes, batches and change history.</li>
+              </ul>
+              <div class="example-foot"><span class="open">Open music <span class="arrow">→</span></span></div>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      <section class="wrap mt-20" id="compare">
+        <div class="section-head">
+          <div><span class="kicker"><b>02</b> · pick by feature</span><h2>What each one shows</h2></div>
+          <span class="caps">● the example's focus · — not its focus</span>
+        </div>
+        <div class="matrix-wrap">
+          <table class="matrix">
+            <thead><tr><th>Platform feature</th>
+              <th><a href="http://localhost:5174/">Movies</a></th><th><a href="http://localhost:5177/">Chat</a></th>
+              <th><a href="http://localhost:5176/">Projects</a></th><th><a href="http://localhost:5175/">Music</a></th></tr></thead>
+            <tbody>
+              <tr><td>Model, deploy and import<small>from an empty instance to a running app</small></td><td><i class="dot-on"></i></td><td><i class="dot-off"></i></td><td><i class="dot-off"></i></td><td><i class="dot-off"></i></td></tr>
+              <tr><td>Live queries over SSE<small>every open tab repaints on its own</small></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td></tr>
+              <tr><td>Typed queries from XSQL<small>code generated for each language</small></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td></tr>
+              <tr><td>Row-level security<small>guards in the model decide who reads and writes</small></td><td><i class="dot-off"></i></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td><td><i class="dot-off"></i></td></tr>
+              <tr><td>Notifications that respect access<small>only the people allowed to see it hear of it</small></td><td><i class="dot-off"></i></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td><td><i class="dot-off"></i></td></tr>
+              <tr><td>Typed refusals<small>a forbidden write says why, as a code</small></td><td><i class="dot-off"></i></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td><td><i class="dot-off"></i></td></tr>
+              <tr><td>Change history<small>who changed what, from what to what</small></td><td><i class="dot-on"></i></td><td><i class="dot-off"></i></td><td><i class="dot-off"></i></td><td><i class="dot-on"></i></td></tr>
+              <tr><td>Custom branding<small>the app and the engine's sign-in in your brand</small></td><td><i class="dot-off"></i></td><td><i class="dot-off"></i></td><td><i class="dot-off"></i></td><td><i class="dot-on"></i></td></tr>
+              <tr><td>Modeler, console and logs<small>the platform's tools, with tours, on the app's data</small></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td><td><i class="dot-on"></i></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="wrap mt-20 mb-20">
+        <div class="section-head">
+          <div><span class="kicker"><b>03</b> · the same in all four</span><h2>Under every example</h2></div>
+        </div>
+        <div class="common">
+          <div><b><ty-icon size="sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg></ty-icon>One instance</b>
+            <p>The four apps share one Synthigy engine and its users; each deploys its own model.</p></div>
+          <div><b><ty-icon size="sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></ty-icon>A server-side BFF</b>
+            <p>Tokens never reach the browser. It receives HTML and SSE patches, nothing else.</p></div>
+          <div><b><ty-icon size="sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></ty-icon>No build step</b>
+            <p>Tyrell components and Datastar come from a CDN; the BFF runs as it is written.</p></div>
+          <div><b><ty-icon size="sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/></svg></ty-icon>A guided tour</b>
+            <p>Every app walks you through itself, then opens the modeler, console and logs on its data.</p></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="px-6 py-3 text-[0.8em] shrink-0 flex flex-wrap items-center gap-3 justify-between">
+    <span>Every example is open source: <a href="https://github.com/synthigy/examples">synthigy/examples</a></span>
+    <span class="footer-credit">Synthigy examples · components by tyrell</span>
+  </footer>
+
+  <script>
+    // The movies card's miniature: a rating lands every few seconds, the
+    // counter climbs and a row lights up, the way the real app repaints.
+    (function () {
+      var tick = document.getElementById("tick"), rows = document.querySelectorAll("[data-flash]");
+      if (!tick || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      var n = 100836, i = 0;
+      setInterval(function () {
+        n += 1 + Math.floor(Math.random() * 3);
+        tick.textContent = n.toLocaleString("en-US");
+        var r = rows[i++ % rows.length];
+        r.classList.remove("flash"); void r.offsetWidth; r.classList.add("flash");
+      }, 1800);
+    })();
+  </script>
+  <script src="/chrome.js"></script>
+</body>
+</html>
