@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in · Groove Harbor</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="brand.css">
+</head>
+<body class="gh-page">
+  <!--
+    The sign-in page of the Groove Harbor bundle. The engine serves it at
+    /login/groove-harbor/?state=… for the music app's OAuth client (its
+    "Login page" setting); music/py/brand.py uploads and wires it.
+
+    Contract (System → Custom pages → index.html in the console):
+      - carry ?state= back unchanged in a hidden field;
+      - POST username + password + state to /oauth/login with
+        Accept: application/json and credentials: 'include', so errors stay
+        on this page instead of falling back to the built-in one.
+  -->
+  <aside class="gh-poster" aria-hidden="true">
+    <div class="gh-poster-top">
+      <img src="logo.svg" alt="" width="44" height="44">
+      <span class="gh-kicker">Side A · 33⅓ rpm</span>
+    </div>
+    <h2 class="gh-display">Groove<br>Harbor<span class="gh-serif">your record shelf, live.</span></h2>
+    <div class="gh-disc gh-spin"></div>
+  </aside>
+  <main class="gh-panel">
+    <span class="gh-kicker"><b>Sign in</b> · Groove Harbor</span>
+    <h1 class="gh-display">Welcome <em>back.</em></h1>
+    <p class="gh-lede">Pick up where the needle left off.</p>
+    <form id="login" method="post" action="/oauth/login">
+      <input type="hidden" name="state" id="state">
+      <label class="gh-field"><span>Username</span>
+        <input id="username" name="username" autocomplete="username" value="{{DEMO_USER}}">
+      </label>
+      <label class="gh-field"><span>Password</span>
+        <input id="password" name="password" type="password" autocomplete="current-password">
+      </label>
+      <div class="gh-error" id="error" role="alert"></div>
+      <button class="gh-btn" type="submit">Sign in</button>
+    </form>
+    <div id="federated"></div>
+    <p class="gh-note">Demo instance · <b>{{DEMO_USER}}</b> / <b>{{DEMO_PASSWORD}}</b></p>
+  </main>
+
+  <script>
+    var q = new URLSearchParams(location.search);
+    var STATE = q.get('state') || '';
+    document.getElementById('state').value = STATE;
+    if (q.get('login_hint')) document.getElementById('username').value = q.get('login_hint');
+
+    // "Continue with X": the providers the engine has switched on, if any.
+    if (STATE) {
+      fetch('/oauth/federated/providers').then(function (r) { return r.json(); }).then(function (providers) {
+        if (!providers.length) return;
+        var box = document.getElementById('federated');
+        box.innerHTML = '<div class="gh-divider">or</div><div class="gh-fed"></div>';
+        providers.forEach(function (p) {
+          var a = document.createElement('a');
+          a.className = 'gh-btn ghost';
+          a.href = '/oauth/federated/start?' + new URLSearchParams({ provider: p.name, state: STATE });
+          a.textContent = 'Continue with ' + p.label;
+          box.lastChild.appendChild(a);
+        });
+      }).catch(function () {});
+    }
+
+    // Every code the engine answers a sign-in with, in this brand's voice.
+    var ERRORS = {
+      credentials: "That username and password don't match. Try again.",
+      expired_code: 'This sign-in took too long. Start again from Groove Harbor.',
+      device_code_expired: 'The device code expired. Start again on the device.',
+      already_authorized: 'This device code was already used.',
+      ip_address: 'Your network changed while signing in. Start again from Groove Harbor.',
+      user_agent: 'Your browser changed while signing in. Start again from Groove Harbor.',
+      challenge: "The device confirmation didn't match. Start again on the device.",
+      broken_flow: 'Open this page from Groove Harbor, not directly.'
+    };
+    var FEDERATED = {
+      provider_unknown: 'That sign-in method is no longer available.',
+      provider_disabled: 'That sign-in method is switched off.',
+      provider_unsupported: "Couldn't reach that provider. Try again.",
+      token_invalid: "That provider's answer couldn't be verified.",
+      no_code: 'That provider sent no authorization code.',
+      state_invalid: 'That sign-in link expired. Try again.',
+      expired_code: 'This sign-in took too long. Start again from Groove Harbor.',
+      not_linked: "That account isn't linked here. Use your password instead.",
+      email_exists: 'An account already uses that email address.',
+      provision_failed: "We couldn't create an account from that provider.",
+      callback_error: 'Something went wrong signing in. Try again.'
+    };
+    var err = document.getElementById('error');
+    var code = q.get('error');
+    if (code) err.textContent = FEDERATED[code] || (code.indexOf('idp_') === 0
+      ? 'Sign-in was cancelled. Try again, or use your password.' : "Couldn't sign in. Try again.");
+    else if (!STATE) err.textContent = ERRORS.broken_flow;
+
+    document.getElementById('login').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      err.textContent = '';
+      var res = await fetch('/oauth/login', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(new FormData(this))
+      });
+      var data = await res.json();
+      if (data.ok && data.redirect) { location = data.redirect; return; }
+      if (data.ok && data.form_post) {
+        var f = document.createElement('form');
+        f.method = 'post'; f.action = data.form_post.url;
+        Object.entries(data.form_post.params).forEach(function (kv) {
+          var i = document.createElement('input');
+          i.type = 'hidden'; i.name = kv[0]; i.value = kv[1]; f.appendChild(i);
+        });
+        document.body.appendChild(f); f.submit(); return;
+      }
+      err.textContent = ERRORS[data.error] || "Couldn't sign in. Try again.";
+    });
+  </script>
+</body>
+</html>

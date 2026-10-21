@@ -1,5 +1,10 @@
 # datastar-music
 
+**The branding example.** Everything a visitor sees here wears *Groove
+Harbor*, a brand made up for it: the app, its error pages, sign-out, and the
+engine's own sign-in page. Swap one directory for your own brand (see [The
+brand](#the-brand)).
+
 A live **music library** for the Synthigy **Python SDK**: a FastAPI BFF renders
 server-side HTML over **Tyrell** web components, and the browser gets HTML +
 **Datastar** SSE patches. No client-side framework, no build step. The Python
@@ -38,6 +43,67 @@ Every interactive block carries a chip naming the SDK call behind it.
 Live updates are **notify-then-refetch**: an event only pokes, and the BFF
 re-runs the RLS-scoped query. Open `/albums` in two tabs and press ▶ in one.
 
+## The brand
+
+A record sleeve: bone paper, ink and one loud harbor blue; condensed heavy
+capitals (Archivo), an italic serif for the human voice (Instrument Serif),
+mono for the small print (IBM Plex Mono); square sleeves, round buttons, and
+a vinyl record drawn in pure CSS (`.gh-disc`) that the app and the engine's
+pages share.
+
+```
+music/brand/            the brand, and the engine's custom-pages bundle at once
+├── brand.css           tokens, fonts, the record; the app maps them onto Tyrell
+├── logo.svg            the mark
+├── index.html          the engine's sign-in page for this app
+├── status.html         sign-in outcome (see "not yet" below)
+└── error.html          request rejected before sign-in (see "not yet" below)
+```
+
+| Page | Served by | How it gets the brand |
+|---|---|---|
+| The app | this BFF | `shared/theme.css`, then `brand/brand.css` over it |
+| Sign in | the engine, `/login/groove-harbor/` | this directory uploaded as a custom-pages bundle; the OAuth client's **Login page** names it |
+| Signed out | this BFF, `/signed-out` | the app's layout |
+| 404, 403, 500, sign-in failed | this BFF | exception handlers render them in the layout (`serve.py`) |
+
+`/brand` in the app is the brand book: the palette, the type, and every one
+of these pages.
+
+`brand.py` puts the engine half in place: it uploads `../brand/` as the bundle
+`groove-harbor` (what *System → Custom pages* does in the console, signed in as
+`DEMO_USER`, default `admin`) and sets this app's OAuth client settings
+`login-page`, `logo-url` and `logout-redirections`. Only this client changes;
+the other examples keep the `default` bundle.
+
+### Make it yours
+
+1. Edit the `--gh-*` colours and the three fonts at the top of
+   `brand/brand.css`.
+2. Replace `brand/logo.svg`, and the name and tagline in `brand/*.html` and
+   `BRAND` in `views.py`.
+3. `synthigy exec -- python brand.py` and reload. Each run stores and serves a
+   new bundle version; the console keeps the old ones to roll back to.
+
+The sign-in page's contract is the form, not the look: carry `?state=` back,
+POST to `/oauth/login` with `Accept: application/json`, keep `#username` and
+`#password`. The console documents every page and code under *System → Custom
+pages*.
+
+### What the engine does not brand yet (engine 0.3.0)
+
+- **Status, error, device and claim pages come from the `default` bundle
+  only.** One app cannot have its own: `status.html` and `error.html` are in
+  the bundle, finished, and the engine serves them for this app the day it
+  can. Making them the instance-wide `default` would rebrand every other
+  example on the instance.
+- **There is no signed-out page to customize, and `/oauth/logout` answers in
+  plain text** (`"Session is not active"`, 400), even right after a sign-in.
+  So sign-out here ends the app's session and lands on its own page.
+- **The Synthigy tools** in the footer (model, console, logs) are the
+  platform's own and sign in through the `default` page, on purpose: they are
+  the platform under the brand.
+
 ## Run
 
 Needs Python ≥ 3.10 and an instance from `../../scripts/bootstrap-instance.sh`.
@@ -57,11 +123,20 @@ synthigy exec -- python backfill_covers.py      # optional album art
 # 3. generate the typed ops
 synthigy exec -- python -m synthigy.codegen gen ../xsql --out generated/music_gen.py --pull
 
-# 4. start
+# 4. put the brand on the engine's sign-in for this app
+synthigy exec -- python brand.py
+
+# 5. start
 synthigy exec -- uvicorn serve:app --port 5175 --reload --timeout-graceful-shutdown 3
 ```
 
-Open <http://localhost:5175> and log in as `admin` / `admin`.
+Open <http://localhost:5175> and sign in as `admin` / `admin`.
+
+On Windows, set `PYTHONUTF8=1` first: the seed files and the codegen's output
+are UTF-8, and Python there otherwise reads and prints them as cp1252.
+
+`EXAMPLES_URL`, when set, adds a link back to the examples landing page to the
+topbar.
 
 - **Seed data:** `seed.py` uses the albums in `../../datasets/music/`. For
   your own volume, reshape the Kaggle
