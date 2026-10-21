@@ -100,6 +100,8 @@ on the server when a template's hash changed.
 - `npm start` runs node in watch mode; run one instance.
 - Changing `PORT`/`BASE_URL` in `.synthigy/.env` means re-registering the
   client's redirect URI (exact match).
+- `EXAMPLES_URL`, when set, adds a link back to the examples landing page
+  (`../../landing/`) to the header.
 - Omitted on purpose: optimistic UI, a production session store, `id_token`
   signature verification.
 - Removing an attribute in the modeler and adding one with the same name later

@@ -16,6 +16,9 @@ Synthigy source tree, so each one also proves the released artifact works.
 Then follow the README of the port you want; every command there is
 `synthigy exec -- …` from inside the port.
 
+[`landing/`](landing/) is the page that lists them all: `node
+scripts/landing.mjs` serves it at <http://localhost:5170>.
+
 ## Domains
 
 | Domain | Model + seed | js | py | go | php | clj |
@@ -44,6 +47,7 @@ bench/                  benchmark harnesses (movies dataset)
 | `add-tools-redirect.sh <origin>…` | Registers a demo origin on the "Synthigy Tools" client (bootstrap does 5174–5177) |
 | `build-tooling.sh [--clean]` | Serves a local `@synthigy/tooling` build to every demo instead of the CDN one |
 | `dev-proxy.mjs` | One port in front of a demo and the engine, for an ngrok tunnel |
+| `landing.mjs` | The examples landing page (`landing/`) on :5170, links overridable from env |
 
 ## Conventions
 
