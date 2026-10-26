@@ -23,7 +23,8 @@ DATASTAR = "v1.0.2"
 # this BFF (see examples/shared/README.md) — a demo running standalone (no
 # hub in front) would otherwise default to its own origin and 404 on every
 # /data call.
-_ENDPOINT = os.environ.get("SYNTHIGY_ENDPOINT", "http://localhost:7887")
+_ENDPOINT = os.environ.get("SYNTHIGY_PUBLIC_ENDPOINT",
+                           os.environ.get("SYNTHIGY_ENDPOINT", "http://localhost:7887"))
 # Point the rail at a locally built bundle when one is present (dropped by
 # examples/scripts/build-tooling.sh), so a component change can be tested
 # before @synthigy/tooling is republished; otherwise the rail uses the pinned

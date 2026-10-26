@@ -1,0 +1,24 @@
+# The demo image (docker/Dockerfile) builds from the repo root. Keep local
+# state, caches and anything the build regenerates out of its context.
+.git
+.synthigy
+**/node_modules
+**/.venv
+**/__pycache__
+**/generated
+**/schema.json
+**/*.ir.json
+**/.cpcache
+**/.nrepl-port
+chat/clj/gen/*.clj
+chat/clj/gen/chat
+project-management/go/gen/generated.go
+project-management/go/project-management-bff
+movies/php
+movies/go
+bench
+datasets/movies/movies-*m
+shared/vendor
+docker/snapshot
+docker/engine.key
+**/*.log

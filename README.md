@@ -19,6 +19,8 @@ Then follow the README of the port you want; every command there is
 [`landing/`](landing/) is the page that lists them all: `node
 scripts/landing.mjs` serves it at <http://localhost:5170>.
 
+Or all of it at once, engine included, in Docker: see [`docker/`](docker/).
+
 ## Domains
 
 | Domain | Model + seed | js | py | go | php | clj |

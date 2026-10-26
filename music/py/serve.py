@@ -597,9 +597,11 @@ async def stream_dashboard(request: Request):
 
 @app.get("/login")
 async def login(returnTo: str = "/"):
+    # public_endpoint: the authorize URL is for the BROWSER, which may reach
+    # the engine at another address than this BFF does (behind a proxy).
     started = await synthigy.aclient().login.start(
         redirect_uri=REDIRECT_URI, return_to=returnTo,
-        scope="openid email profile")
+        scope="openid email profile", public_endpoint=PUBLIC_ENDPOINT)
     return RedirectResponse(started["url"], status_code=302)
 
 

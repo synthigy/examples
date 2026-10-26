@@ -92,7 +92,10 @@ def upload(zipped: bytes) -> int:
 
 def wire_client() -> dict:
     """Merge the brand into this app's OAuth client settings."""
-    client = synthigy.connect()
+    # Explicit credentials, as seed.py does: under `synthigy exec` the env
+    # carries them too, and without the CLI (the demo image) nothing else would.
+    client = synthigy.connect(ENGINE, client_id=CLIENT_ID,
+                              client_secret=os.environ["SYNTHIGY_CLIENT_SECRET"])
     rows = client.search("oauth_client", {"id": {"_eq": CLIENT_ID}}, {"xid": None, "settings": None})
     if not rows:
         sys.exit(f"OAuth client {CLIENT_ID!r} not found — run scripts/bootstrap-instance.sh")
